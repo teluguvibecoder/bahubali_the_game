@@ -2,16 +2,12 @@ import React, { useEffect, useRef, useState } from "react";
 import Matter from "matter-js";
 
 /**
- * Core idea:
- * - Create a slingshot anchor + hero circle (Matter.Body)
- * - Attach with a Constraint (sling). Add MouseConstraint to drag.
- * - On enddrag when hero released, remove sling so body flies.
- * - After short delay, spawn a ragdoll at hero position:
- *    create several bodies (head, torso, upper/lower limbs) and constraints between them
- *    copy current velocity from hero to ragdoll parts for continuity
- * - Remove the single hero body after ragdoll spawns
- *
- * This file uses Matter.Render for quick visuals (shapes).
+ * Baahubali-themed slingshot game with sprite-based rendering
+ * - Ball projectile launches from coconut tree slingshot
+ * - Transforms into ragdoll soldier mid-air
+ * - Environment includes tree, cannon, elephant, wall, and kingdom gate
+ * - Win condition: soldier reaches gate sensor
+ * - Fail condition: hits cannon/wall before gate
  */
 
 export default function Game() {
@@ -19,6 +15,7 @@ export default function Game() {
   const engineRef = useRef(null);
   const [running, setRunning] = useState(false);
   const [launched, setLaunched] = useState(false);
+  const [gameStatus, setGameStatus] = useState(""); // "victory" or "failed"
 
   useEffect(() => {
     // --- basic Matter setup ---
@@ -37,10 +34,10 @@ export default function Game() {
     engine.gravity.y = 1.0;
     engineRef.current = engine;
 
-    const width = 900;
-    const height = 540;
+    const width = 1200;
+    const height = 600;
 
-    // render
+    // render with background image
     const render = Render.create({
       element: sceneRef.current,
       engine: engine,
@@ -48,76 +45,117 @@ export default function Game() {
         width,
         height,
         wireframes: false,
-        background: "#0b0a0a",
+        background: "transparent", // We'll add Land.png as canvas background
       },
     });
 
-    // ground and walls
+    // Add background image to canvas
+    const canvas = render.canvas;
+    canvas.style.backgroundImage = "url('/game_assets/land.png')";
+    canvas.style.backgroundSize = "cover";
+    canvas.style.backgroundPosition = "center";
+
+    // ground (invisible, for physics only)
     const ground = Bodies.rectangle(width / 2, height - 10, width, 40, {
       isStatic: true,
-      render: { fillStyle: "#222" },
+      label: "ground",
+      render: { fillStyle: "transparent" },
     });
     const leftWall = Bodies.rectangle(-30, height / 2, 60, height, {
       isStatic: true,
+      label: "leftWall",
     });
     const rightWall = Bodies.rectangle(width + 30, height / 2, 60, height, {
       isStatic: true,
+      label: "rightWall",
     });
 
-    // slingshot anchor point
-    const anchor = { x: 140, y: 360 };
+    // --- ENVIRONMENT SPRITES ---
+    // Coconut tree (slingshot base) at far left
+    const tree = Bodies.rectangle(120, height - 120, 80, 160, {
+      isStatic: true,
+      label: "tree",
+      render: {
+        sprite: {
+          texture: "/game_assets/coconut_tree.png",
+          xScale: 0.3,
+          yScale: 0.3,
+        },
+      },
+    });
 
-    // hero (projectile) - single circle that will be replaced by ragdoll on release
-    let hero = Bodies.circle(anchor.x, anchor.y, 18, {
+    // Goat ram obstacle on the right
+    const goatRam = Bodies.rectangle(900, height - 80, 100, 80, {
+      isStatic: true,
+      label: "goatRam",
+      render: {
+        sprite: {
+          texture: "/game_assets/goat.png",
+          xScale: 0.3,
+          yScale: 0.3,
+        },
+      },
+    });
+
+    // Fort entrance wall on the right (obstacle before the goal)
+    const wall = Bodies.rectangle(1050, height - 150, 80, 300, {
+      isStatic: true,
+      label: "wall",
+      render: {
+        sprite: {
+          texture: "/game_assets/entrance_wall.png",
+          xScale: 0.5,
+          yScale: 0.5,
+        },
+      },
+    });
+
+    // Gate sensor (invisible trigger for win condition - behind the wall)
+    const gateSensor = Bodies.rectangle(1150, height - 100, 100, 200, {
+      isStatic: true,
+      isSensor: true, // No physical collision, only detection
+      label: "gateSensor",
+      render: { fillStyle: "rgba(0, 255, 0, 0.1)" }, // Slightly visible for debugging
+    });
+
+    // --- PROJECTILE ---
+    // Slingshot anchor point (on coconut tree)
+    const anchor = { x: 120, y: height - 150 };
+
+    // Hero (projectile) - starts as small soldier sprite
+    let hero = Bodies.circle(anchor.x, anchor.y, 15, {
       density: 0.004,
       restitution: 0.2,
       frictionAir: 0.02,
-      render: { fillStyle: "#ff5252" }, // red hero
+      label: "hero",
+      render: {
+        sprite: {
+          texture: "/game_assets/soldier.png",
+          xScale: 0.04, // Smaller scale for ball form
+          yScale: 0.04,
+        },
+      },
     });
 
-    // simple platform for the sling
-    const platform = Bodies.rectangle(140, 420, 120, 16, {
-      isStatic: true,
-      render: { fillStyle: "#6b5b3a" },
-    });
-
-    // create target stack (blocks)
-    function createTower(x, y) {
-      const blocks = [];
-      const w = 60,
-        h = 40;
-      blocks.push(
-        Bodies.rectangle(x, y, w, h, { render: { fillStyle: "#b38b59" } })
-      );
-      blocks.push(
-        Bodies.rectangle(x + 70, y, w, h, { render: { fillStyle: "#b38b59" } })
-      );
-      blocks.push(
-        Bodies.rectangle(x + 35, y - 55, 120, 30, {
-          render: { fillStyle: "#8b5e3c" },
-        })
-      );
-      return blocks;
-    }
-    const towers = [...createTower(620, 420), ...createTower(760, 420)];
-
-    // sling constraint: pointA is fixed anchor, bodyB = hero
+    // Sling constraint: pointA is fixed anchor, bodyB = hero
     let sling = Constraint.create({
       pointA: anchor,
       bodyB: hero,
       stiffness: 0.02,
-      render: { strokeStyle: "#ffffff", lineWidth: 3 },
+      render: { strokeStyle: "#8B4513", lineWidth: 4 }, // Brown slingshot
     });
 
-    // add everything to world
+    // Add everything to world
     World.add(engine.world, [
       ground,
       leftWall,
       rightWall,
-      platform,
+      tree,
+      goatRam,
+      wall,
+      gateSensor,
       hero,
       sling,
-      ...towers,
     ]);
 
     // add mouse control
@@ -140,13 +178,56 @@ export default function Game() {
       window.location.reload();
     }
 
-    // collision-based removal: if body falls below canvas, remove it
+    // Collision-based removal: if body falls below canvas, remove it
     Events.on(engine, "afterUpdate", () => {
       Composite.allBodies(engine.world).forEach((b) => {
         if (!b.isStatic && b.position.y > height + 200) {
           try {
             World.remove(engine.world, b);
           } catch (e) {}
+        }
+      });
+    });
+
+    // --- WIN/FAIL DETECTION ---
+    // Track if ragdoll parts have been created
+    let ragdollParts = [];
+
+    // Collision detection for win/fail conditions
+    Events.on(engine, "collisionStart", (event) => {
+      event.pairs.forEach((pair) => {
+        const { bodyA, bodyB } = pair;
+
+        // Check if any ragdoll part reaches the gate sensor -> WIN
+        if (
+          (bodyA.label === "gateSensor" && ragdollParts.includes(bodyB)) ||
+          (bodyB.label === "gateSensor" && ragdollParts.includes(bodyA))
+        ) {
+          if (gameStatus === "") {
+            setGameStatus("victory");
+          }
+        }
+
+        // Check if projectile or ragdoll hits goatRam/wall before gate -> FAIL
+        const isRagdollOrHero =
+          ragdollParts.includes(bodyA) ||
+          ragdollParts.includes(bodyB) ||
+          bodyA.label === "hero" ||
+          bodyB.label === "hero";
+
+        const hitObstacle =
+          bodyA.label === "goatRam" ||
+          bodyB.label === "goatRam" ||
+          bodyA.label === "wall" ||
+          bodyB.label === "wall";
+
+        if (isRagdollOrHero && hitObstacle && gameStatus === "") {
+          // Only fail if they haven't reached the gate yet
+          setTimeout(() => {
+            if (gameStatus === "") {
+              setGameStatus("failed");
+            }
+          }, 500); // Small delay to see if they make it over
         }
       });
     });
@@ -168,65 +249,103 @@ export default function Game() {
       }
     });
 
-    // spawn ragdoll: create multiple bodies + constraints mimicking limbs,
-    // copy hero's position & velocity so motion feels continuous
+    // Spawn ragdoll: create multiple bodies + constraints mimicking soldier limbs
+    // Copy hero's position & velocity so motion feels continuous
+    // Use soldier.png sprite for all body parts
     function spawnRagdollFromHero(heroBody, world) {
       if (!heroBody) return;
-      // read current state
+      // Read current state
       const pos = Matter.Vector.clone(heroBody.position);
       const vel = Matter.Vector.clone(heroBody.velocity);
       const angle = heroBody.angle;
 
-      // create ragdoll pieces (simple shapes)
+      // Soldier sprite configuration (applied to all body parts)
+      const soldierSprite = {
+        texture: "/game_assets/soldier.png",
+        xScale: 0.08,
+        yScale: 0.08,
+      };
+
+      // Create ragdoll pieces with soldier sprite
       const head = Bodies.circle(pos.x, pos.y - 20, 12, {
         density: 0.001,
         frictionAir: 0.02,
-        render: { fillStyle: "#ffd6a5" },
+        label: "ragdollPart",
+        render: {
+          sprite: soldierSprite,
+        },
       });
       const torso = Bodies.rectangle(pos.x, pos.y + 4, 28, 36, {
         density: 0.002,
         frictionAir: 0.02,
-        render: { fillStyle: "#6b8cff" },
+        label: "ragdollPart",
+        render: {
+          sprite: soldierSprite,
+        },
       });
       const upperArmL = Bodies.rectangle(pos.x - 18, pos.y - 2, 10, 24, {
         density: 0.001,
         frictionAir: 0.03,
-        render: { fillStyle: "#6b8cff" },
+        label: "ragdollPart",
+        render: {
+          sprite: soldierSprite,
+        },
       });
       const upperArmR = Bodies.rectangle(pos.x + 18, pos.y - 2, 10, 24, {
         density: 0.001,
         frictionAir: 0.03,
-        render: { fillStyle: "#6b8cff" },
+        label: "ragdollPart",
+        render: {
+          sprite: soldierSprite,
+        },
       });
       const lowerArmL = Bodies.rectangle(pos.x - 30, pos.y + 10, 10, 20, {
         density: 0.001,
         frictionAir: 0.03,
-        render: { fillStyle: "#6b8cff" },
+        label: "ragdollPart",
+        render: {
+          sprite: soldierSprite,
+        },
       });
       const lowerArmR = Bodies.rectangle(pos.x + 30, pos.y + 10, 10, 20, {
         density: 0.001,
         frictionAir: 0.03,
-        render: { fillStyle: "#6b8cff" },
+        label: "ragdollPart",
+        render: {
+          sprite: soldierSprite,
+        },
       });
       const upperLegL = Bodies.rectangle(pos.x - 8, pos.y + 30, 12, 28, {
         density: 0.001,
         frictionAir: 0.03,
-        render: { fillStyle: "#5e4b8b" },
+        label: "ragdollPart",
+        render: {
+          sprite: soldierSprite,
+        },
       });
       const upperLegR = Bodies.rectangle(pos.x + 8, pos.y + 30, 12, 28, {
         density: 0.001,
         frictionAir: 0.03,
-        render: { fillStyle: "#5e4b8b" },
+        label: "ragdollPart",
+        render: {
+          sprite: soldierSprite,
+        },
       });
       const lowerLegL = Bodies.rectangle(pos.x - 8, pos.y + 55, 12, 24, {
         density: 0.001,
         frictionAir: 0.03,
-        render: { fillStyle: "#5e4b8b" },
+        label: "ragdollPart",
+        render: {
+          sprite: soldierSprite,
+        },
       });
       const lowerLegR = Bodies.rectangle(pos.x + 8, pos.y + 55, 12, 24, {
         density: 0.001,
         frictionAir: 0.03,
-        render: { fillStyle: "#5e4b8b" },
+        label: "ragdollPart",
+        render: {
+          sprite: soldierSprite,
+        },
       });
 
       // joints (constraints) connect pieces — simple revolute-like constraints
@@ -312,30 +431,7 @@ export default function Game() {
         render: { visible: false },
       });
 
-      // place ragdoll parts into world
-      World.add(world, [
-        head,
-        torso,
-        upperArmL,
-        upperArmR,
-        lowerArmL,
-        lowerArmR,
-        upperLegL,
-        upperLegR,
-        lowerLegL,
-        lowerLegR,
-        neck,
-        shoulderL,
-        shoulderR,
-        elbowL,
-        elbowR,
-        hipL,
-        hipR,
-        kneeL,
-        kneeR,
-      ]);
-
-      // copy velocity/angle from hero so ragdoll continues motion
+      // Store ragdoll parts for collision detection
       const pieces = [
         head,
         torso,
@@ -348,12 +444,31 @@ export default function Game() {
         lowerLegL,
         lowerLegR,
       ];
+
+      // Add to global ragdoll tracking
+      ragdollParts.push(...pieces);
+
+      // Place ragdoll parts and constraints into world
+      World.add(world, [
+        ...pieces,
+        neck,
+        shoulderL,
+        shoulderR,
+        elbowL,
+        elbowR,
+        hipL,
+        hipR,
+        kneeL,
+        kneeR,
+      ]);
+
+      // Copy velocity/angle from hero so ragdoll continues motion
       pieces.forEach((p) => {
         Body.setVelocity(p, vel);
         Body.setAngularVelocity(p, heroBody.angularVelocity || 0);
       });
 
-      // remove original hero body from world
+      // Remove original hero body from world
       try {
         World.remove(world, heroBody);
       } catch (e) {}
@@ -393,10 +508,39 @@ export default function Game() {
     <div className="gameWrap">
       <div ref={sceneRef} className="scene" />
       <div className="hud">
-        <div>Launched: {launched ? "Yes" : "No"}</div>
         <div className="hint">
-          Drag the red circle, release to launch → ragdoll spawns
+          Drag the ball from the coconut tree and launch the soldier to reach
+          the kingdom gate!
         </div>
+        {launched && !gameStatus && (
+          <div style={{ color: "#FFA500", fontWeight: "bold", marginTop: "10px" }}>
+            Soldier launched! Watch the trajectory...
+          </div>
+        )}
+        {gameStatus === "victory" && (
+          <div
+            style={{
+              color: "#00FF00",
+              fontWeight: "bold",
+              fontSize: "24px",
+              marginTop: "10px",
+            }}
+          >
+            🎉 VICTORY! The soldier reached the kingdom! 🎉
+          </div>
+        )}
+        {gameStatus === "failed" && (
+          <div
+            style={{
+              color: "#FF0000",
+              fontWeight: "bold",
+              fontSize: "20px",
+              marginTop: "10px",
+            }}
+          >
+            ❌ Try Again! The soldier was blocked by obstacles.
+          </div>
+        )}
       </div>
     </div>
   );
