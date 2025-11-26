@@ -4,7 +4,6 @@ import Matter from "matter-js";
 /**
  * Baahubali-themed slingshot game with sprite-based rendering
  * - Ball projectile launches from coconut tree slingshot
- * - Transforms into ragdoll soldier mid-air
  * - Environment includes tree, cannon, elephant, wall, and kingdom gate
  * - Win condition: soldier reaches gate sensor
  * - Fail condition: hits cannon/wall before gate
@@ -30,12 +29,13 @@ export default function Game() {
     const Composite = Matter.Composite;
     const Events = Matter.Events;
 
+    // Stroes physics of the game
     const engine = Engine.create();
     engine.gravity.y = 1.0;
     engineRef.current = engine;
 
-    const width = 1200;
-    const height = 600;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
 
     // render with background image
     const render = Render.create({
@@ -77,7 +77,7 @@ export default function Game() {
       label: "tree",
       render: {
         sprite: {
-          texture: "/game_assets/coconut_tree.png",
+          backgroundImage: "/game_assets/coconut_tree.png",
           xScale: 0.3,
           yScale: 0.3,
         },
@@ -488,7 +488,7 @@ export default function Game() {
     });
 
     // run engine and renderer
-    Engine.run(engine);
+    Matter.Engine.run(engine);
     Render.run(render);
 
     setRunning(true);
@@ -508,12 +508,10 @@ export default function Game() {
     <div className="gameWrap">
       <div ref={sceneRef} className="scene" />
       <div className="hud">
-        <div className="hint">
-          Drag the ball from the coconut tree and launch the soldier to reach
-          the kingdom gate!
-        </div>
         {launched && !gameStatus && (
-          <div style={{ color: "#FFA500", fontWeight: "bold", marginTop: "10px" }}>
+          <div
+            style={{ color: "#FFA500", fontWeight: "bold", marginTop: "10px" }}
+          >
             Soldier launched! Watch the trajectory...
           </div>
         )}
