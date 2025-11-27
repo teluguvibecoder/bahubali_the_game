@@ -5,6 +5,7 @@ const Practice = () => {
   const sceneRef = useRef(null);
   const engineRef = useRef(Matter.Engine.create());
   const renderRef = useRef(null);
+  const wallImgRef = useRef(null);
 
   useEffect(() => {
     const {
@@ -57,32 +58,37 @@ const Practice = () => {
     });
 
     // Mahishmati Wall
-    const wall = Bodies.rectangle(990, height - 450, 80, 300, {
-      isStatic: true,
-      label: "wall",
-      render: {
-        sprite: {
-          texture: "/game_assets/entrance_wall.png",
-          xScale: 0.3,
-          yScale: 0.3,
+    const wallWidth = 500;
+    const wallHeight = 700;
+
+    const wall = Bodies.rectangle(
+      width - 100,
+      height - 400,
+      wallWidth,
+      wallHeight,
+      {
+        isStatic: true,
+        label: "wall",
+        render: {
+          visible: false, // hide in Matter's renderer (physics still works)
         },
-      },
-    });
+      }
+    );
 
     // Tree and tree events ===============================================================================================
     // Main logic lies here only
-    const scale = 0.3;
-    const treePixelHeight = 300;
+    const scale = 0.25;
+    const treePixelHeight = 500;
     const treeHeight = treePixelHeight * scale;
 
     // Pivot point at the base of the tree
     const pivotX = 200;
-    const pivotY = height - 150;
+    const pivotY = height - 50;
 
     // Create the tree body
     const coconutTree = Bodies.rectangle(
       pivotX,
-      pivotY - treeHeight / 2,
+      pivotY - 20 - treeHeight / 2,
       90,
       treeHeight,
       {
@@ -101,14 +107,14 @@ const Practice = () => {
     // Create a coconut/ball on the tree
     const coconut = Bodies.circle(
       pivotX + 20, // Position on the tree
-      pivotY - treeHeight + 40, // Near the top of the tree
+      pivotY - treeHeight, // Near the top of the tree
       15,
       {
         label: "coconut",
         restitution: 0.8,
         friction: 0.01,
         render: {
-          fillStyle: "#8B4513", // Brown color for coconut
+          fillStyle: "#ff0000ff", // Brown color for coconut
         },
       }
     );
@@ -139,8 +145,8 @@ const Practice = () => {
 
     // Function to rotate tree around its base
     function rotateTreeAroundBase(angle) {
-      const maxAngle = 0.5; // ~28 degrees limit
-      const clampedAngle = Math.max(Math.min(angle, maxAngle), -maxAngle);
+      const maxAngle = +1; // ~28 degrees limit
+      const clampedAngle = Math.max(Math.min(angle, maxAngle), -maxAngle); // limits the input angle with in allowed range.
 
       // Calculate new position to keep base fixed
       const centerToBase = treeHeight / 2;
@@ -160,20 +166,44 @@ const Practice = () => {
       const coconutOffsetY = 20 * Math.sin(angle) + 40 * Math.cos(angle);
 
       const newCoconutX = pivotX + coconutOffsetX;
-      const newCoconutY = pivotY - treeHeight + 40 + coconutOffsetY;
+      const newCoconutY = pivotY - treeHeight + coconutOffsetY;
 
       Matter.Body.setPosition(coconut, { x: newCoconutX, y: newCoconutY });
       Matter.Body.setVelocity(coconut, { x: 0, y: 0 });
       Matter.Body.setAngularVelocity(coconut, 0);
     }
 
+    // coconut functions
+    function attachCoconutToTree() {
+      console.log("🔴 ATTACHING COCONUT");
+      console.log("Tree angle:", coconutTree.angle);
+      console.log(
+        "Coconut position BEFORE:",
+        coconut.position.x,
+        coconut.position.y
+      );
+      // Matter.Body.setStatic(coconut, true);
+      updateCoconutPosition(coconutTree.angle);
+      console.log(
+        "Coconut position AFTER:",
+        coconut.position.x,
+        coconut.position.y
+      );
+      console.log("Is coconut static?", coconut.isStatic);
+    }
+
+    function detachCoconutFromTree() {
+      console.log("🟢 DETACHING COCONUT");
+      // Matter.Body.setStatic(coconut, false);
+      console.log("Is coconut static?", coconut.isStatic);
+    }
+
     Matter.Events.on(mouseConstraint, "startdrag", (event) => {
+      console.log("🖱️ START DRAG", event.body.label);
       if (event.body === coconutTree) {
         isDragging = true;
         releasing = false;
-
-        // Reset coconut to tree when starting to drag
-        updateCoconutPosition(coconutTree.angle);
+        attachCoconutToTree();
       }
     });
 
@@ -196,6 +226,8 @@ const Practice = () => {
         isDragging = false;
         releasing = true;
 
+        detachCoconutFromTree(); // now the coconut can fly
+
         // Launch the coconut when releasing!
         const launchPower = coconutTree.angle * 50; // Power based on how far tree was bent
         const launchVelocity = {
@@ -210,6 +242,9 @@ const Practice = () => {
 
     // Smooth spring-back for the tree
     Matter.Events.on(engine, "beforeUpdate", () => {
+      if (isDragging) {
+        updateCoconutPosition(coconutTree.angle);
+      }
       if (releasing) {
         const currentAngle = coconutTree.angle;
         const nextAngle = currentAngle * 0.7; // Spring back damping
@@ -223,25 +258,48 @@ const Practice = () => {
       }
     });
 
+    let resetScheduled = false;
+
     // Reset coconut when it goes off screen or after some time
     Matter.Events.on(engine, "afterUpdate", () => {
+      // 🔁 Sync wall image with physics body
+      if (wallImgRef.current) {
+        const spriteOffsetY = 500;
+        const { x, y } = wall.position;
+        wallImgRef.current.style.left = `${x - spriteOffsetY}px`;
+        wallImgRef.current.style.top = `${y - 75}px`;
+        wallImgRef.current.style.width = `80vw`;
+        wallImgRef.current.style.height = `80vh`;
+      }
+
       // Reset coconut if it falls off screen
       if (
         coconut.position.y > height + 100 ||
         coconut.position.x < -100 ||
         coconut.position.x > width + 100
       ) {
-        // Wait a bit before resetting
-        setTimeout(() => {
-          updateCoconutPosition(coconutTree.angle);
-        }, 1000);
+        if (!resetScheduled) {
+          resetScheduled = true;
+          setTimeout(() => {
+            console.log("⏰ RESET TRIGGERED");
+            console.log("Tree angle before reset:", coconutTree.angle);
+            rotateTreeAroundBase(0);
+            releasing = false;
+            isDragging = false;
+            console.log("Tree angle after reset:", coconutTree.angle);
+
+            attachCoconutToTree();
+            resetScheduled = false;
+          }, 1000);
+        }
       }
     });
 
     // Optional: Add keyboard reset
     document.addEventListener("keydown", (event) => {
       if (event.code === "Space") {
-        updateCoconutPosition(coconutTree.angle);
+        // updateCoconutPosition(coconutTree.angle);
+        attachCoconutToTree();
       }
     });
 
@@ -253,23 +311,38 @@ const Practice = () => {
       // Update canvas size
       render.canvas.width = width;
       render.canvas.height = height;
-
       render.bounds.max.x = width;
       render.bounds.max.y = height;
-
       render.options.width = width;
       render.options.height = height;
 
-      // Move + reshape ground
+      // Reposition ground
       Body.setPosition(ground, { x: width / 2, y: height - 20 });
       Body.setVertices(
         ground,
         Vertices.fromPath(`0 0 ${width} 0 ${width} 40 0 40`)
       );
+      ground.render.sprite.xScale = width / 800;
+      ground.render.sprite.yScale = 40 / 100;
 
-      // OPTIONAL: scale sprite to match new width/height
-      ground.render.sprite.xScale = width / 800; // based on original img width
-      ground.render.sprite.yScale = 40 / 100; // based on original img height
+      // Reposition wall
+      Body.setPosition(wall, { x: width - 100, y: height - 300 });
+
+      // Recalculate tree position based on new height
+      const newPivotY = height - 50;
+      Body.setPosition(coconutTree, {
+        x: pivotX, // pivotX stays same (200)
+        y: newPivotY - treeHeight / 2,
+      });
+
+      // Update coconut position to match tree
+      const coconutOffsetX = 20;
+      const coconutOffsetY = -treeHeight + 40;
+      Body.setPosition(coconut, {
+        x: pivotX + coconutOffsetX,
+        y: newPivotY + coconutOffsetY,
+      });
+      Body.setVelocity(coconut, { x: 0, y: 0 });
     };
 
     window.addEventListener("resize", handleResize);
@@ -299,6 +372,13 @@ const Practice = () => {
           className="bg-video"
         />
         <div ref={sceneRef} className="scene"></div>
+
+        <img
+          ref={wallImgRef}
+          src="/game_assets/entrance_wall.png"
+          className="wall-img"
+          alt="Mahishmati wall"
+        />
       </div>
     </>
   );

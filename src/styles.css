@@ -8,8 +8,12 @@ body,
 }
 
 .scene {
-  position: relative;
+  position: absolute;
   z-index: 1;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .scene-container{
@@ -27,4 +31,10 @@ body,
   height: 100%;
   object-fit: cover;
   z-index: 0;
+}
+
+.wall-img {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none; /* don't block mouse drag */
 }
