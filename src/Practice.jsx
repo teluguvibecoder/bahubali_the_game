@@ -7,6 +7,14 @@ const Practice = () => {
   const renderRef = useRef(null);
   const wallImgRef = useRef(null);
 
+  // Store references for resize handling
+  const pivotRef = useRef({ x: 200, y: 0 });
+  const dimensionsRef = useRef({
+    wallWidth: 500,
+    wallHeight: 700,
+    treeHeight: 0
+  });
+
   useEffect(() => {
     const {
       Engine,
@@ -61,9 +69,13 @@ const Practice = () => {
     const wallWidth = 500;
     const wallHeight = 700;
 
+    // Store dimensions for later use
+    dimensionsRef.current.wallWidth = wallWidth;
+    dimensionsRef.current.wallHeight = wallHeight;
+
     const wall = Bodies.rectangle(
-      width - 100,
-      height - 400,
+      width - wallWidth / 2 - 50, // Center the wall properly from the right edge
+      height - wallHeight / 2 - 15, // Align with ground (ground is at height - 15)
       wallWidth,
       wallHeight,
       {
@@ -81,9 +93,16 @@ const Practice = () => {
     const treePixelHeight = 500;
     const treeHeight = treePixelHeight * scale;
 
+    // Store tree height for later use
+    dimensionsRef.current.treeHeight = treeHeight;
+
     // Pivot point at the base of the tree
     const pivotX = 200;
     const pivotY = height - 50;
+
+    // Store pivot points for resize handling
+    pivotRef.current.x = pivotX;
+    pivotRef.current.y = pivotY;
 
     // Create the tree body
     const coconutTree = Bodies.rectangle(
@@ -148,10 +167,15 @@ const Practice = () => {
       const maxAngle = +1; // ~28 degrees limit
       const clampedAngle = Math.max(Math.min(angle, maxAngle), -maxAngle); // limits the input angle with in allowed range.
 
+      // Use stored pivot references
+      const currentPivotX = pivotRef.current.x;
+      const currentPivotY = pivotRef.current.y;
+      const currentTreeHeight = dimensionsRef.current.treeHeight;
+
       // Calculate new position to keep base fixed
-      const centerToBase = treeHeight / 2;
-      const newX = pivotX + centerToBase * Math.sin(clampedAngle);
-      const newY = pivotY - centerToBase * Math.cos(clampedAngle);
+      const centerToBase = currentTreeHeight / 2;
+      const newX = currentPivotX + centerToBase * Math.sin(clampedAngle);
+      const newY = currentPivotY - 20 - centerToBase * Math.cos(clampedAngle);
 
       Matter.Body.setAngle(coconutTree, clampedAngle);
       Matter.Body.setPosition(coconutTree, { x: newX, y: newY });
@@ -161,12 +185,17 @@ const Practice = () => {
 
     // Function to update coconut position based on tree rotation
     function updateCoconutPosition(angle) {
+      // Use stored pivot references
+      const currentPivotX = pivotRef.current.x;
+      const currentPivotY = pivotRef.current.y;
+      const currentTreeHeight = dimensionsRef.current.treeHeight;
+
       // Position the coconut relative to the tree's rotated position
       const coconutOffsetX = 20 * Math.cos(angle) - 40 * Math.sin(angle);
       const coconutOffsetY = 20 * Math.sin(angle) + 40 * Math.cos(angle);
 
-      const newCoconutX = pivotX + coconutOffsetX;
-      const newCoconutY = pivotY - treeHeight + coconutOffsetY;
+      const newCoconutX = currentPivotX + coconutOffsetX;
+      const newCoconutY = currentPivotY - currentTreeHeight + coconutOffsetY;
 
       Matter.Body.setPosition(coconut, { x: newCoconutX, y: newCoconutY });
       Matter.Body.setVelocity(coconut, { x: 0, y: 0 });
@@ -211,7 +240,8 @@ const Practice = () => {
       if (!isDragging || mouseConstraint.body !== coconutTree) return;
 
       const mousePos = mouse.position;
-      const dx = mousePos.x - pivotX;
+      const currentPivotX = pivotRef.current.x;
+      const dx = mousePos.x - currentPivotX;
 
       // Map mouse drag to angle (-0.5 to 0.5 radians)
       const angle = dx * 0.01;
@@ -264,12 +294,15 @@ const Practice = () => {
     Matter.Events.on(engine, "afterUpdate", () => {
       // 🔁 Sync wall image with physics body
       if (wallImgRef.current) {
-        const spriteOffsetY = 500;
         const { x, y } = wall.position;
-        wallImgRef.current.style.left = `${x - spriteOffsetY}px`;
-        wallImgRef.current.style.top = `${y - 75}px`;
-        wallImgRef.current.style.width = `80vw`;
-        wallImgRef.current.style.height = `80vh`;
+        const wallWidth = dimensionsRef.current.wallWidth;
+        const wallHeight = dimensionsRef.current.wallHeight;
+
+        // Position the image to match the physics body center
+        wallImgRef.current.style.left = `${x - wallWidth / 2}px`;
+        wallImgRef.current.style.top = `${y - wallHeight / 2}px`;
+        wallImgRef.current.style.width = `${wallWidth}px`;
+        wallImgRef.current.style.height = `${wallHeight}px`;
       }
 
       // Reset coconut if it falls off screen
@@ -316,8 +349,8 @@ const Practice = () => {
       render.options.width = width;
       render.options.height = height;
 
-      // Reposition ground
-      Body.setPosition(ground, { x: width / 2, y: height - 20 });
+      // Reposition ground (use consistent height - 15)
+      Body.setPosition(ground, { x: width / 2, y: height - 15 });
       Body.setVertices(
         ground,
         Vertices.fromPath(`0 0 ${width} 0 ${width} 40 0 40`)
@@ -325,24 +358,39 @@ const Practice = () => {
       ground.render.sprite.xScale = width / 800;
       ground.render.sprite.yScale = 40 / 100;
 
-      // Reposition wall
-      Body.setPosition(wall, { x: width - 100, y: height - 300 });
+      // Reposition wall (use same calculation as initial setup)
+      const wallWidth = dimensionsRef.current.wallWidth;
+      const wallHeight = dimensionsRef.current.wallHeight;
+      Body.setPosition(wall, {
+        x: width - wallWidth / 2 - 50,
+        y: height - wallHeight / 2 - 15,
+      });
 
       // Recalculate tree position based on new height
+      const newPivotX = pivotRef.current.x; // Keep x same (200)
       const newPivotY = height - 50;
+      const treeHeight = dimensionsRef.current.treeHeight;
+
+      // Update stored pivot point
+      pivotRef.current.y = newPivotY;
+
       Body.setPosition(coconutTree, {
-        x: pivotX, // pivotX stays same (200)
-        y: newPivotY - treeHeight / 2,
+        x: newPivotX,
+        y: newPivotY - 20 - treeHeight / 2,
       });
 
       // Update coconut position to match tree
       const coconutOffsetX = 20;
       const coconutOffsetY = -treeHeight + 40;
       Body.setPosition(coconut, {
-        x: pivotX + coconutOffsetX,
+        x: newPivotX + coconutOffsetX,
         y: newPivotY + coconutOffsetY,
       });
       Body.setVelocity(coconut, { x: 0, y: 0 });
+      Body.setAngularVelocity(coconut, 0);
+
+      // Reset tree angle on resize
+      Body.setAngle(coconutTree, 0);
     };
 
     window.addEventListener("resize", handleResize);
