@@ -41,6 +41,7 @@ const Iteration2 = () => {
     });
 
     renderRef.current = render;
+    const scale = 0.25;
 
     // Ground====================================================================================================================================================================
     const groundHeight = 40;
@@ -49,18 +50,25 @@ const Iteration2 = () => {
       isStatic: true,
       label: "ground",
       render: {
-        fillStyle: "#3cff00ff",
+        fillStyle: "#964b00",
       },
     });
 
     // Ground end ====================================================================================================================================================================
 
     // Mahishmati wall ===============================================================================================================================================================
-    const wallWidth = width * 0.15;
-    const wallHeight = height * 0.6;
+    const WALL_IMG_WIDTH = 1882;
+    const WALL_IMG_HEIGHT = 2572;
+
+    const wallTargetHeightRatio = 0.7;
+
+    const wallScale = (height * wallTargetHeightRatio) / WALL_IMG_HEIGHT;
+
+    const wallWidth = WALL_IMG_WIDTH * wallScale;
+    const wallHeight = WALL_IMG_HEIGHT * wallScale;
 
     const wall = Bodies.rectangle(
-      width - wallWidth / 2 - 5, // Center the wall properly from the right edge
+      width - wallWidth / 2, // Center the wall properly from the right edge
       height - wallHeight / 2, // Align with ground bottom
       wallWidth,
       wallHeight,
@@ -68,18 +76,29 @@ const Iteration2 = () => {
         isStatic: true,
         label: "wall",
         render: {
-          fillStyle: "#ff8800ff",
+          sprite: {
+            texture: "/game_assets/entrance_wall.png",
+            xScale: wallScale,
+            yScale: wallScale,
+          },
         },
       }
     );
     // Mahishmati wall end ===========================================================================================================================================================
 
     // Coconut Tree ==================================================================================================================================================================
+    const TREE_IMG_WIDTH = 677;
+    const TREE_IMG_HEIGHT = 961;
+
+    const treeTargetHeightRatio = 0.3;
+
     const treePositionX = 150;
     const treePositionY = groundY - groundHeight / 2; // This is the ground top surface
 
-    const treeWidth = 50;
-    const treeHeight = 150;
+    const treeScale = (height * treeTargetHeightRatio) / TREE_IMG_HEIGHT;
+
+    const treeWidth = TREE_IMG_WIDTH * treeScale;
+    const treeHeight = TREE_IMG_HEIGHT * treeScale;
 
     const coconutTree = Bodies.rectangle(
       treePositionX,
@@ -90,7 +109,12 @@ const Iteration2 = () => {
         isStatic: false,
         label: "tree",
         render: {
-          fillStyle: "#0080ffff", // Brown color for coconut
+          sprite: {
+            texture: "/game_assets/coconut_tree.png",
+            xScale: treeScale,
+            yScale: treeScale,
+          },
+          //   fillStyle: "transparent",
         },
       }
     );
@@ -134,7 +158,17 @@ const Iteration2 = () => {
     // Coconut Tree End ==============================================================================================================================================================
 
     // Coconut for reference =========================================================================================================================================================
+    const SOLDIER_IMG_WIDTH = 2142;
+    const SOLDIER_IMG_HEIGHT = 3027;
+    const soldierTargetHeightRatio = 0.2;
+
+    const soldierScale =
+      (height * soldierTargetHeightRatio) / SOLDIER_IMG_HEIGHT;
+
     const coconutRadius = 15;
+    const soldierWidth = SOLDIER_IMG_WIDTH * soldierScale;
+    const solderHeight = SOLDIER_IMG_HEIGHT * soldierScale;
+
     const coconut = Bodies.circle(
       treePositionX + treeWidth / 2 - coconutRadius, // Position on the tree
       treePositionY - treeHeight / 2, // Near the top of the tree
@@ -144,10 +178,16 @@ const Iteration2 = () => {
         restitution: 0.8,
         friction: 0.01,
         render: {
-          fillStyle: "#ff0000ff", // Brown color for coconut
+          sprite: {
+            texture: "/game_assets/soldier.png",
+            xScale: soldierScale,
+            yScale: soldierScale,
+          },
         },
       }
     );
+
+    Matter.Body.setInertia(coconut, Infinity);
 
     const coconutConstraint = Constraint.create({
       bodyA: coconutTree,
@@ -215,7 +255,7 @@ const Iteration2 = () => {
         };
 
         Body.setVelocity(coconut, launchVelocity);
-        Body.setAngularVelocity(coconut, launchPower * 0.1);
+        Body.setAngularVelocity(coconut, 0);
 
         // Schedule automatic reset after 4 seconds (whether on screen or off)
         if (!resetScheduled) {
@@ -347,11 +387,14 @@ const Iteration2 = () => {
       }
 
       // Reposition wall
-      const wallWidth = width * 0.15;
-      const wallHeight = height * 0.6;
+      const wallTargetHeightRatio = 0.7;
+      const wallScale = (height * wallTargetHeightRatio) / WALL_IMG_HEIGHT;
+
+      const wallWidth = WALL_IMG_WIDTH * wallScale;
+      const wallHeight = WALL_IMG_HEIGHT * wallScale;
 
       Body.setPosition(wall, {
-        x: width - wallWidth / 2 - 5,
+        x: width - wallWidth / 2,
         y: height - wallHeight / 2, // Match initial setup
       });
 
@@ -362,18 +405,46 @@ const Iteration2 = () => {
         )
       );
 
-      // Recalculate the tree position (match initial setup)
-      const newTreePositionY = groundY - groundHeight / 2; // Ground top surface
-      const treeHeight = 150;
+      if (wall.render.sprite) {
+        wall.render.sprite.xScale = wallScale;
+        wall.render.sprite.yScale = wallScale;
+      }
 
+      // Recalculate the tree position (match initial setup)
+      const treeTargetHeightRatio = 0.3;
+      const newTreeScale = (height * treeTargetHeightRatio) / TREE_IMG_HEIGHT;
+
+      const newTreeWidth = TREE_IMG_WIDTH * newTreeScale;
+      const newTreeHeight = TREE_IMG_HEIGHT * newTreeScale;
+
+      // Recalculate tree Y based on new ground
+      const newTreePositionY = groundY - groundHeight / 2;
+
+      // Update tree body position
       Body.setPosition(coconutTree, {
         x: treePositionX,
-        y: newTreePositionY - treeHeight / 2,
+        y: newTreePositionY - newTreeHeight / 2,
       });
 
       // Update hinge position
       treeHinge.pointA.x = treePositionX;
       treeHinge.pointA.y = newTreePositionY;
+
+      treeHinge.pointB.x = 0;
+      treeHinge.pointB.y = newTreeHeight / 2;
+
+      // Update tree body shape to match new width/height
+      Body.setVertices(
+        coconutTree,
+        Vertices.fromPath(
+          `0 0 ${newTreeWidth} 0 ${newTreeWidth} ${newTreeHeight} 0 ${newTreeHeight}`
+        )
+      );
+
+      if (coconutTree.render.sprite) {
+        coconutTree.render.sprite.xScale = newTreeScale;
+        coconutTree.render.sprite.yScale = newTreeScale;
+      }
     };
     window.addEventListener("resize", handleResize);
     window.addEventListener("orientationchange", handleResize);
@@ -420,12 +491,14 @@ const Iteration2 = () => {
   return (
     <>
       <div className="scene-container">
-        {/* <video
+        <video
+          loop
+          autoPlay
           muted
           playsInline
-          src="/game_assets/bg.mp4"
+          src="/game_assets/mountain_bg.mp4"
           className="bg-video"
-        /> */}
+        />
         <div ref={sceneRef} className="scene"></div>
       </div>
     </>
