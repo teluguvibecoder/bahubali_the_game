@@ -44,7 +44,7 @@ const Iteration2 = () => {
 
     // Ground====================================================================================================================================================================
     const groundHeight = 40;
-    const groundY = height - 15;
+    const groundY = height - groundHeight / 2; // Ground center position (bottom edge at screen bottom)
     const ground = Bodies.rectangle(width / 2, groundY, width, groundHeight, {
       isStatic: true,
       label: "ground",
@@ -61,7 +61,7 @@ const Iteration2 = () => {
 
     const wall = Bodies.rectangle(
       width - wallWidth / 2 - 5, // Center the wall properly from the right edge
-      height - wallHeight / 2 - 30, // Align with ground (ground is at height - 15)
+      height - wallHeight / 2, // Align with ground bottom
       wallWidth,
       wallHeight,
       {
@@ -76,7 +76,7 @@ const Iteration2 = () => {
 
     // Coconut Tree ==================================================================================================================================================================
     const treePositionX = 150;
-    const treePositionY = groundY - groundHeight / 2;
+    const treePositionY = groundY - groundHeight / 2; // This is the ground top surface
 
     const treeWidth = 50;
     const treeHeight = 150;
@@ -166,7 +166,7 @@ const Iteration2 = () => {
     // Coconut for reference End =====================================================================================================================================================
 
     // Game drag, mouse logics =======================================================================================================================================================
-    const mouse = Mouse.create(render.canva);
+    const mouse = Mouse.create(render.canvas);
     const mouseConstraint = MouseConstraint.create(engine, {
       mouse,
       constraint: {
@@ -181,6 +181,8 @@ const Iteration2 = () => {
 
     let coconutReleased = false;
     let isDragging = false;
+    let releasing = false;
+    let resetScheduled = false;
 
     Events.on(mouseConstraint, "startdrag", (event) => {
       if (event.body === coconut) {
@@ -193,24 +195,60 @@ const Iteration2 = () => {
     Events.on(mouseConstraint, "enddrag", (event) => {
       if (event.body === coconut && !coconutReleased) {
         isDragging = false;
+        releasing = true;
 
         World.remove(engine.world, coconutConstraint);
         coconutReleased = true;
 
-        const spinBoost = 1.8;
-        Body.setAngularVelocity(
-          coconutTree,
-          coconutTree.angularVelocity * spinBoost
-        );
+        // Launch the coconut based on tree angle (transferred from Practice.jsx)
+        const launchPower = coconutTree.angle * 50;
+        const launchVelocity = {
+          x: -launchPower, // Launch in opposite direction of bend
+          y: -Math.abs(launchPower) * 0.5, // Some upward velocity
+        };
 
-        Body.applyForce(coconut, coconut.position, {
-          x: 0.02, // forward
-          y: -0.01, // a bit upward
-        });
+        Body.setVelocity(coconut, launchVelocity);
+        Body.setAngularVelocity(coconut, launchPower * 0.1);
       }
     });
 
     // Game Grad, mouse logics End ===================================================================================================================================================
+
+    // Reset coconut when it goes off screen (transferred from Practice.jsx) ========================================================================================================
+    Events.on(engine, "afterUpdate", () => {
+      if (
+        coconut.position.y > height + 100 ||
+        coconut.position.x < -100 ||
+        coconut.position.x > width + 100
+      ) {
+        if (!resetScheduled) {
+          resetScheduled = true;
+          setTimeout(() => {
+            // Reset tree angle
+            Body.setAngle(coconutTree, initialTreeAngle);
+            Body.setAngularVelocity(coconutTree, 0);
+
+            // Reset coconut position
+            const resetX = treePositionX + treeWidth / 2 - coconutRadius;
+            const resetY = treePositionY - treeHeight / 2;
+            Body.setPosition(coconut, { x: resetX, y: resetY });
+            Body.setVelocity(coconut, { x: 0, y: 0 });
+            Body.setAngularVelocity(coconut, 0);
+
+            // Reattach constraint
+            if (coconutReleased) {
+              World.add(engine.world, coconutConstraint);
+              coconutReleased = false;
+            }
+
+            releasing = false;
+            isDragging = false;
+            resetScheduled = false;
+          }, 1000);
+        }
+      }
+    });
+    // Reset logic End =======================================================================================================================================================================
 
     // Resize code for mobile and desktop ============================================================================================================================================
     const handleResize = () => {
@@ -226,7 +264,7 @@ const Iteration2 = () => {
 
       // Reposition the ground
       const groundHeight = 40;
-      const groundY = height - 15;
+      const groundY = height - groundHeight / 2; // Match initial setup
 
       Body.setPosition(ground, {
         x: width / 2,
@@ -243,30 +281,35 @@ const Iteration2 = () => {
         ground.render.sprite.xScale = width / 800; // scales the actual sprite images
         ground.render.sprite.yScale = 40 / 100;
       }
+
       // Reposition wall
       const wallWidth = width * 0.15;
-      const wallHeight = height * 0.62;
+      const wallHeight = height * 0.6;
 
       Body.setPosition(wall, {
         x: width - wallWidth / 2 - 5,
-        y: height - wallHeight / 2 - 30,
+        y: height - wallHeight / 2, // Match initial setup
       });
 
       Body.setVertices(
         wall,
         Vertices.fromPath(
-          `0 0 ${wallWidth} 0 ${wallWidth} ${wallHeight} 0 ${wallHeight} $`
+          `0 0 ${wallWidth} 0 ${wallWidth} ${wallHeight} 0 ${wallHeight}`
         )
       );
 
-      // Recalculate the tree position
-      const treeOffsetX = 100;
-      const treeOffsetFromBottom = 90;
+      // Recalculate the tree position (match initial setup)
+      const newTreePositionY = groundY - groundHeight / 2; // Ground top surface
+      const treeHeight = 150;
 
       Body.setPosition(coconutTree, {
-        x: treeOffsetX,
-        y: height - treeOffsetFromBottom,
+        x: treePositionX,
+        y: newTreePositionY - treeHeight / 2,
       });
+
+      // Update hinge position
+      treeHinge.pointA.x = treePositionX;
+      treeHinge.pointA.y = newTreePositionY;
     };
     window.addEventListener("resize", handleResize);
     window.addEventListener("orientationchange", handleResize);
@@ -274,22 +317,66 @@ const Iteration2 = () => {
     // Resize code for mobile and desktop Ends =======================================================================================================================================
 
     // Trigger Full screen on mobiles==================================================================================================================================================
-    // const enableFullScreen = async () => {
-    //   try {
-    //     if (sceneRef.current && !document.fullscreenElement) {
-    //       await sceneRef.current.requestFullscreen();
-    //     }
-    //     if (screen.orientation && screen.orientation.lock) {
-    //       await screen.orientation.lock("landscape");
-    //     }
-    //   } catch (err) {
-    //     console.warn("Full screen or orientation lock failed: ", err);
-    //   }
-    // };
+    let fullscreenTriggered = false;
 
-    // // Tridder full screen
-    // window.addEventListener("touchstart", enableFullScreen, { once: true });
-    // window.addEventListener("click", enableFullScreen, { once: true });
+    const enableFullScreen = async () => {
+      if (fullscreenTriggered) return;
+      fullscreenTriggered = true;
+
+      try {
+        // Try different fullscreen methods for better mobile compatibility
+        const docElement = document.documentElement;
+
+        if (!document.fullscreenElement &&
+            !document.webkitFullscreenElement &&
+            !document.mozFullScreenElement) {
+
+          // Standard fullscreen API
+          if (docElement.requestFullscreen) {
+            await docElement.requestFullscreen().catch((err) => {
+              console.warn("Fullscreen request failed:", err);
+            });
+          }
+          // Safari/iOS fullscreen
+          else if (docElement.webkitRequestFullscreen) {
+            docElement.webkitRequestFullscreen();
+          }
+          // Firefox fullscreen
+          else if (docElement.mozRequestFullScreen) {
+            docElement.mozRequestFullScreen();
+          }
+          // IE/Edge fullscreen
+          else if (docElement.msRequestFullscreen) {
+            docElement.msRequestFullscreen();
+          }
+        }
+
+        // Try to lock orientation to landscape
+        if (screen.orientation && screen.orientation.lock) {
+          await screen.orientation.lock("landscape").catch((err) => {
+            console.warn("Orientation lock failed:", err);
+          });
+        }
+      } catch (err) {
+        console.warn("Full screen or orientation lock failed: ", err);
+      }
+    };
+
+    // Trigger full screen on first interaction
+    const handleFirstTouch = (e) => {
+      enableFullScreen();
+      window.removeEventListener("touchstart", handleFirstTouch);
+      window.removeEventListener("click", handleFirstClick);
+    };
+
+    const handleFirstClick = (e) => {
+      enableFullScreen();
+      window.removeEventListener("touchstart", handleFirstTouch);
+      window.removeEventListener("click", handleFirstClick);
+    };
+
+    window.addEventListener("touchstart", handleFirstTouch);
+    window.addEventListener("click", handleFirstClick);
     // trigger full screen ends here =================================================================================================================================================
 
     // Add the objects to the environment ============================================================================================================================================
@@ -310,8 +397,8 @@ const Iteration2 = () => {
 
     // Clean up code ==================================================================================================================================================================
     return () => {
-      window.removeEventListener("touchstart", enableFullScreen);
-      window.removeEventListener("click", enableFullScreen);
+      window.removeEventListener("touchstart", handleFirstTouch);
+      window.removeEventListener("click", handleFirstClick);
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("orientationchange", handleResize);
 
