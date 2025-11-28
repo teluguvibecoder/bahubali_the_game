@@ -1,6 +1,6 @@
 import React from "react";
-import Game from "./Game";
-import Practice from "./Practice";
+// import Game from "./ignore_code/Game";
+// import Practice from "./ignore_code/Practice";
 import Iteration2 from "./Iteration2";
 
 export default function App() {

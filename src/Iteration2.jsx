@@ -183,6 +183,9 @@ const Iteration2 = () => {
     let isDragging = false;
     let releasing = false;
     let resetScheduled = false;
+    let score = 0;
+    let hasPassedWall = false;
+    let hasHitWall = false;
 
     Events.on(mouseConstraint, "startdrag", (event) => {
       if (event.body === coconut) {
@@ -200,6 +203,10 @@ const Iteration2 = () => {
         World.remove(engine.world, coconutConstraint);
         coconutReleased = true;
 
+        // Reset tracking flags for new throw
+        hasPassedWall = false;
+        hasHitWall = false;
+
         // Launch the coconut based on tree angle (transferred from Practice.jsx)
         const launchPower = coconutTree.angle * 50;
         const launchVelocity = {
@@ -209,46 +216,103 @@ const Iteration2 = () => {
 
         Body.setVelocity(coconut, launchVelocity);
         Body.setAngularVelocity(coconut, launchPower * 0.1);
+
+        // Schedule automatic reset after 4 seconds (whether on screen or off)
+        if (!resetScheduled) {
+          resetScheduled = true;
+          setTimeout(() => {
+            resetCoconut();
+          }, 4000);
+        }
       }
     });
 
     // Game Grad, mouse logics End ===================================================================================================================================================
 
-    // Reset coconut when it goes off screen (transferred from Practice.jsx) ========================================================================================================
-    Events.on(engine, "afterUpdate", () => {
-      if (
-        coconut.position.y > height + 100 ||
-        coconut.position.x < -100 ||
-        coconut.position.x > width + 100
-      ) {
-        if (!resetScheduled) {
-          resetScheduled = true;
-          setTimeout(() => {
-            // Reset tree angle
-            Body.setAngle(coconutTree, initialTreeAngle);
-            Body.setAngularVelocity(coconutTree, 0);
+    // Reset coconut function ================================================================================================================================================================
+    function resetCoconut() {
+      // Reset tree angle
+      Body.setAngle(coconutTree, initialTreeAngle);
+      Body.setAngularVelocity(coconutTree, 0);
 
-            // Reset coconut position
-            const resetX = treePositionX + treeWidth / 2 - coconutRadius;
-            const resetY = treePositionY - treeHeight / 2;
-            Body.setPosition(coconut, { x: resetX, y: resetY });
-            Body.setVelocity(coconut, { x: 0, y: 0 });
-            Body.setAngularVelocity(coconut, 0);
+      // Reset coconut position
+      const resetX = treePositionX + treeWidth / 2 - coconutRadius;
+      const resetY = treePositionY - treeHeight / 2;
+      Body.setPosition(coconut, { x: resetX, y: resetY });
+      Body.setVelocity(coconut, { x: 0, y: 0 });
+      Body.setAngularVelocity(coconut, 0);
 
-            // Reattach constraint
-            if (coconutReleased) {
-              World.add(engine.world, coconutConstraint);
-              coconutReleased = false;
-            }
+      // Reattach constraint
+      if (coconutReleased) {
+        World.add(engine.world, coconutConstraint);
+        coconutReleased = false;
+      }
 
-            releasing = false;
-            isDragging = false;
-            resetScheduled = false;
-          }, 1000);
+      releasing = false;
+      isDragging = false;
+      resetScheduled = false;
+      hasPassedWall = false;
+      hasHitWall = false;
+    }
+
+    // Collision detection with wall (lose point) ===========================================================================================================================================
+    Events.on(engine, "collisionStart", (event) => {
+      const pairs = event.pairs;
+
+      for (let i = 0; i < pairs.length; i++) {
+        const { bodyA, bodyB } = pairs[i];
+
+        // Check if coconut hit the wall
+        if (
+          (bodyA === coconut && bodyB === wall) ||
+          (bodyA === wall && bodyB === coconut)
+        ) {
+          if (!hasHitWall) {
+            hasHitWall = true;
+            score -= 1;
+            console.log("Hit wall! Score:", score);
+          }
         }
       }
     });
-    // Reset logic End =======================================================================================================================================================================
+
+    // Check if coconut crosses the wall (gain point) =======================================================================================================================================
+    Events.on(engine, "afterUpdate", () => {
+      if (coconutReleased && !hasPassedWall && !hasHitWall) {
+        const wallLeftEdge = wall.position.x - wallWidth / 2;
+
+        if (coconut.position.x > wallLeftEdge) {
+          hasPassedWall = true;
+          score += 1;
+          console.log("Passed wall! Score:", score);
+        }
+      }
+    });
+
+    Events.on(render, "afterRender", () => {
+      const ctx = render.context;
+
+      // Use current render size (handles resize correctly)
+      const w = render.options.width;
+      const h = render.options.height;
+
+      ctx.save();
+      ctx.fillStyle = "#ff0000ff";
+      ctx.strokeStyle = "#000000";
+      ctx.lineWidth = 3;
+      ctx.font = "bold 36px Arial";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "top";
+
+      const scoreText = `Score: ${score}`;
+      const padding = 20;
+
+      ctx.strokeText(scoreText, w - padding, padding);
+      ctx.fillText(scoreText, w - padding, padding);
+      ctx.restore();
+    });
+
+    // Game logic End ========================================================================================================================================================================
 
     // Resize code for mobile and desktop ============================================================================================================================================
     const handleResize = () => {
@@ -317,66 +381,7 @@ const Iteration2 = () => {
     // Resize code for mobile and desktop Ends =======================================================================================================================================
 
     // Trigger Full screen on mobiles==================================================================================================================================================
-    let fullscreenTriggered = false;
 
-    const enableFullScreen = async () => {
-      if (fullscreenTriggered) return;
-      fullscreenTriggered = true;
-
-      try {
-        // Try different fullscreen methods for better mobile compatibility
-        const docElement = document.documentElement;
-
-        if (!document.fullscreenElement &&
-            !document.webkitFullscreenElement &&
-            !document.mozFullScreenElement) {
-
-          // Standard fullscreen API
-          if (docElement.requestFullscreen) {
-            await docElement.requestFullscreen().catch((err) => {
-              console.warn("Fullscreen request failed:", err);
-            });
-          }
-          // Safari/iOS fullscreen
-          else if (docElement.webkitRequestFullscreen) {
-            docElement.webkitRequestFullscreen();
-          }
-          // Firefox fullscreen
-          else if (docElement.mozRequestFullScreen) {
-            docElement.mozRequestFullScreen();
-          }
-          // IE/Edge fullscreen
-          else if (docElement.msRequestFullscreen) {
-            docElement.msRequestFullscreen();
-          }
-        }
-
-        // Try to lock orientation to landscape
-        if (screen.orientation && screen.orientation.lock) {
-          await screen.orientation.lock("landscape").catch((err) => {
-            console.warn("Orientation lock failed:", err);
-          });
-        }
-      } catch (err) {
-        console.warn("Full screen or orientation lock failed: ", err);
-      }
-    };
-
-    // Trigger full screen on first interaction
-    const handleFirstTouch = (e) => {
-      enableFullScreen();
-      window.removeEventListener("touchstart", handleFirstTouch);
-      window.removeEventListener("click", handleFirstClick);
-    };
-
-    const handleFirstClick = (e) => {
-      enableFullScreen();
-      window.removeEventListener("touchstart", handleFirstTouch);
-      window.removeEventListener("click", handleFirstClick);
-    };
-
-    window.addEventListener("touchstart", handleFirstTouch);
-    window.addEventListener("click", handleFirstClick);
     // trigger full screen ends here =================================================================================================================================================
 
     // Add the objects to the environment ============================================================================================================================================
@@ -397,8 +402,10 @@ const Iteration2 = () => {
 
     // Clean up code ==================================================================================================================================================================
     return () => {
-      window.removeEventListener("touchstart", handleFirstTouch);
-      window.removeEventListener("click", handleFirstClick);
+      // Remove fullscreen listeners
+      document.removeEventListener("touchstart", handleFirstTouch);
+      document.removeEventListener("click", handleFirstTouch);
+
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("orientationchange", handleResize);
 
