@@ -160,7 +160,7 @@ const Iteration2 = () => {
     // Coconut for reference =========================================================================================================================================================
     const SOLDIER_IMG_WIDTH = 2142;
     const SOLDIER_IMG_HEIGHT = 3027;
-    const soldierTargetHeightRatio = 0.2;
+    const soldierTargetHeightRatio = 0.18;
 
     const soldierScale =
       (height * soldierTargetHeightRatio) / SOLDIER_IMG_HEIGHT;
@@ -192,7 +192,7 @@ const Iteration2 = () => {
     const coconutConstraint = Constraint.create({
       bodyA: coconutTree,
       pointA: {
-        x: treeWidth,
+        x: treeWidth - 20,
         y: -treeHeight / 4,
       },
       bodyB: coconut,
@@ -235,6 +235,14 @@ const Iteration2 = () => {
       }
     });
 
+    const getLaunchVelocity = () => {
+      const launchPower = coconutTree.angle * 50;
+      return {
+        x: -launchPower,
+        y: -Math.abs(launchPower) * 0.5,
+      };
+    };
+
     Events.on(mouseConstraint, "enddrag", (event) => {
       if (event.body === coconut && !coconutReleased) {
         isDragging = false;
@@ -248,11 +256,7 @@ const Iteration2 = () => {
         hasHitWall = false;
 
         // Launch the coconut based on tree angle (transferred from Practice.jsx)
-        const launchPower = coconutTree.angle * 50;
-        const launchVelocity = {
-          x: -launchPower, // Launch in opposite direction of bend
-          y: -Math.abs(launchPower) * 0.5, // Some upward velocity
-        };
+        const launchVelocity = getLaunchVelocity();
 
         Body.setVelocity(coconut, launchVelocity);
         Body.setAngularVelocity(coconut, 0);
@@ -268,6 +272,56 @@ const Iteration2 = () => {
     });
 
     // Game Grad, mouse logics End ===================================================================================================================================================
+
+    // Trajectory ===============================================================================
+    const getTrajectoryPoints = (start, velocity, steps = 60) => {
+      const { Engine, World, Bodies, Body } = Matter; // or from the destructured vars
+
+      // 1) Create a tiny engine with same gravity
+      const tempEngine = Engine.create();
+      tempEngine.world.gravity.x = engine.world.gravity.x;
+      tempEngine.world.gravity.y = engine.world.gravity.y;
+      tempEngine.world.gravity.scale = engine.world.gravity.scale;
+
+      // 2) Make a small body similar to the soldier
+      const tempBody = Bodies.circle(
+        start.x,
+        start.y,
+        coconut.circleRadius || 10,
+        {
+          frictionAir: coconut.frictionAir,
+          restitution: coconut.restitution,
+          mass: coconut.mass,
+        }
+      );
+
+      World.add(tempEngine.world, tempBody);
+
+      // 3) Apply same launch velocity
+      Body.setVelocity(tempBody, { x: velocity.x, y: velocity.y });
+
+      const points = [];
+      const delta = 1000 / 60; // simulate 60 FPS
+
+      // 4) Step the temp engine forward & collect positions
+      for (let i = 0; i < steps; i++) {
+        Engine.update(tempEngine, delta);
+        points.push({ x: tempBody.position.x, y: tempBody.position.y });
+
+        // stop if way off screen
+        if (
+          tempBody.position.x < -width * 0.5 ||
+          tempBody.position.x > width * 1.5 ||
+          tempBody.position.y > height * 2
+        ) {
+          break;
+        }
+      }
+
+      return points;
+    };
+
+    // Trajectory Ends ===========================================================================
 
     // Reset coconut function ================================================================================================================================================================
     function resetCoconut() {
@@ -350,6 +404,28 @@ const Iteration2 = () => {
       ctx.strokeText(scoreText, w - padding, padding);
       ctx.fillText(scoreText, w - padding, padding);
       ctx.restore();
+
+      // 🎯 2) Draw trajectory when aiming (dragging & not yet released)
+      if (isDragging && !coconutReleased) {
+        const launchVelocity = getLaunchVelocity();
+        const points = getTrajectoryPoints(
+          coconut.position,
+          launchVelocity,
+          60
+        );
+
+        ctx.save();
+        ctx.fillStyle = "#ffffff";
+
+        points.forEach((p) => {
+          const radius = 3;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        ctx.restore();
+      }
     });
 
     // Game logic End ========================================================================================================================================================================
