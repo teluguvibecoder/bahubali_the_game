@@ -1,10 +1,11 @@
-import { useDeferredValue, useEffect, useRef } from "react";
-import Matter, { Events } from "matter-js";
+import { useDeferredValue, useEffect, useRef, useState } from "react";
+import Matter, { Events, use } from "matter-js";
 
 const Iteration2 = () => {
   const sceneRef = useRef(null);
   const engineRef = useRef(Matter.Engine.create());
   const renderRef = useRef(null);
+  const [hasStarted, setHasStarted] = useState(false);
 
   useEffect(() => {
     const {
@@ -20,6 +21,8 @@ const Iteration2 = () => {
       MouseConstraint,
     } = Matter;
     const engine = engineRef.current;
+
+    let resizeTimeout = null;
 
     const getSize = () => ({
       width: window.innerWidth,
@@ -148,7 +151,7 @@ const Iteration2 = () => {
       if (relative < -maxBack) {
         // too far back
         Body.setAngle(coconutTree, initialTreeAngle - maxBack);
-        Body.setAngularVelocity(coconutReleased, 0);
+        Body.setAngularVelocity(coconutTree, 0);
       } else if (relative > maxFront) {
         // too far front
         Body.setAngle(coconutTree, initialTreeAngle + maxFront);
@@ -160,19 +163,18 @@ const Iteration2 = () => {
     // Coconut for reference =========================================================================================================================================================
     const SOLDIER_IMG_WIDTH = 2142;
     const SOLDIER_IMG_HEIGHT = 3027;
-    const soldierTargetHeightRatio = 0.18;
+    const soldierTargetHeightRatio = 0.2;
 
     const soldierScale =
       (height * soldierTargetHeightRatio) / SOLDIER_IMG_HEIGHT;
 
-    const coconutRadius = 15;
-    const soldierWidth = SOLDIER_IMG_WIDTH * soldierScale;
-    const solderHeight = SOLDIER_IMG_HEIGHT * soldierScale;
+    const soldierRadius =
+      (Math.min(SOLDIER_IMG_WIDTH, SOLDIER_IMG_HEIGHT) * soldierScale) / 2;
 
     const coconut = Bodies.circle(
-      treePositionX + treeWidth / 2 - coconutRadius, // Position on the tree
+      treePositionX + treeWidth / 2 - soldierRadius, // Position on the tree
       treePositionY - treeHeight / 2, // Near the top of the tree
-      coconutRadius,
+      soldierRadius,
       {
         label: "coconut",
         restitution: 0.8,
@@ -191,9 +193,10 @@ const Iteration2 = () => {
 
     const coconutConstraint = Constraint.create({
       bodyA: coconutTree,
+      // local point near the right edge, roughly center vertically
       pointA: {
-        x: treeWidth - 20,
-        y: -treeHeight / 4,
+        x: treeWidth / 2 - soldierRadius, // right side minus a bit
+        y: 0,
       },
       bodyB: coconut,
       pointB: {
@@ -201,7 +204,7 @@ const Iteration2 = () => {
         y: 0,
       },
       length: 0,
-      stiffness: 1,
+      stiffness: 0.4,
     });
     // Coconut for reference End =====================================================================================================================================================
 
@@ -325,18 +328,22 @@ const Iteration2 = () => {
 
     // Reset coconut function ================================================================================================================================================================
     function resetCoconut() {
-      // Reset tree angle
+      // straight tree
       Body.setAngle(coconutTree, initialTreeAngle);
       Body.setAngularVelocity(coconutTree, 0);
 
-      // Reset coconut position
-      const resetX = treePositionX + treeWidth / 2 - coconutRadius;
-      const resetY = treePositionY - treeHeight / 2;
+      // use the current tree size/position instead of initial constants
+      const treeBounds = coconutTree.bounds;
+      const treeWidthNow = treeBounds.max.x - treeBounds.min.x;
+      const treeHeightNow = treeBounds.max.y - treeBounds.min.y;
+
+      const resetX = coconutTree.position.x + treeWidthNow / 2 - soldierRadius;
+      const resetY = coconutTree.position.y - treeHeightNow / 2;
+
       Body.setPosition(coconut, { x: resetX, y: resetY });
       Body.setVelocity(coconut, { x: 0, y: 0 });
       Body.setAngularVelocity(coconut, 0);
 
-      // Reattach constraint
       if (coconutReleased) {
         World.add(engine.world, coconutConstraint);
         coconutReleased = false;
@@ -432,96 +439,128 @@ const Iteration2 = () => {
 
     // Resize code for mobile and desktop ============================================================================================================================================
     const handleResize = () => {
-      const { width, height } = getSize();
+      // stop spamming changes while device is in the middle of rotating
+      if (resizeTimeout) clearTimeout(resizeTimeout);
 
-      // Update canvas size
-      render.canvas.width = width; // changing the DOM itself
-      render.canvas.height = height;
-      render.bounds.max.x = width; //Make the visible area’s right boundary equal to the current screen width.
-      render.bounds.max.y = height;
-      render.options.width = width; //It updates that stored width value to match the current window width (after a resize).
-      render.options.height = height;
+      // temporarily pause the engine
+      engine.timing.timeScale = 0; // freeze simulation
 
-      // Reposition the ground
-      const groundHeight = 40;
-      const groundY = height - groundHeight / 2; // Match initial setup
+      resizeTimeout = setTimeout(() => {
+        const { width, height } = getSize();
 
-      Body.setPosition(ground, {
-        x: width / 2,
-        y: groundY,
-      });
-      Body.setVertices(
-        ground,
-        Vertices.fromPath(
-          `0 0 ${width} 0 ${width} ${groundHeight} 0 ${groundHeight}`
-        )
-      );
+        // Update canvas size
+        render.canvas.width = width; // changing the DOM itself
+        render.canvas.height = height;
+        render.bounds.max.x = width; //Make the visible area’s right boundary equal to the current screen width.
+        render.bounds.max.y = height;
+        render.options.width = width; //It updates that stored width value to match the current window width (after a resize).
+        render.options.height = height;
 
-      if (ground.render.sprite) {
-        ground.render.sprite.xScale = width / 800; // scales the actual sprite images
-        ground.render.sprite.yScale = 40 / 100;
-      }
+        // Reposition the ground
+        const groundHeight = 40;
+        const groundY = height - groundHeight / 2; // Match initial setup
 
-      // Reposition wall
-      const wallTargetHeightRatio = 0.7;
-      const wallScale = (height * wallTargetHeightRatio) / WALL_IMG_HEIGHT;
+        Body.setVertices(
+          ground,
+          Vertices.fromPath(
+            `0 0 ${width} 0 ${width} ${groundHeight} 0 ${groundHeight}`
+          )
+        );
 
-      const wallWidth = WALL_IMG_WIDTH * wallScale;
-      const wallHeight = WALL_IMG_HEIGHT * wallScale;
+        Body.setPosition(ground, {
+          x: width / 2,
+          y: groundY,
+        });
 
-      Body.setPosition(wall, {
-        x: width - wallWidth / 2,
-        y: height - wallHeight / 2, // Match initial setup
-      });
+        if (ground.render.sprite) {
+          ground.render.sprite.xScale = width / 800; // scales the actual sprite images
+          ground.render.sprite.yScale = 40 / 100;
+        }
 
-      Body.setVertices(
-        wall,
-        Vertices.fromPath(
-          `0 0 ${wallWidth} 0 ${wallWidth} ${wallHeight} 0 ${wallHeight}`
-        )
-      );
+        // Reposition wall
+        const wallTargetHeightRatio = 0.7;
+        const wallScale = (height * wallTargetHeightRatio) / WALL_IMG_HEIGHT;
 
-      if (wall.render.sprite) {
-        wall.render.sprite.xScale = wallScale;
-        wall.render.sprite.yScale = wallScale;
-      }
+        const wallWidth = WALL_IMG_WIDTH * wallScale;
+        const wallHeight = WALL_IMG_HEIGHT * wallScale;
 
-      // Recalculate the tree position (match initial setup)
-      const treeTargetHeightRatio = 0.3;
-      const newTreeScale = (height * treeTargetHeightRatio) / TREE_IMG_HEIGHT;
+        Body.setVertices(
+          wall,
+          Vertices.fromPath(
+            `0 0 ${wallWidth} 0 ${wallWidth} ${wallHeight} 0 ${wallHeight}`
+          )
+        );
 
-      const newTreeWidth = TREE_IMG_WIDTH * newTreeScale;
-      const newTreeHeight = TREE_IMG_HEIGHT * newTreeScale;
+        Body.setPosition(wall, {
+          x: width - wallWidth / 2,
+          y: height - wallHeight / 2, // Match initial setup
+        });
 
-      // Recalculate tree Y based on new ground
-      const newTreePositionY = groundY - groundHeight / 2;
+        if (wall.render.sprite) {
+          wall.render.sprite.xScale = wallScale;
+          wall.render.sprite.yScale = wallScale;
+        }
 
-      // Update tree body position
-      Body.setPosition(coconutTree, {
-        x: treePositionX,
-        y: newTreePositionY - newTreeHeight / 2,
-      });
+        // Recalculate the tree position (match initial setup)
+        const treeTargetHeightRatio = 0.3;
+        const newTreeScale = (height * treeTargetHeightRatio) / TREE_IMG_HEIGHT;
 
-      // Update hinge position
-      treeHinge.pointA.x = treePositionX;
-      treeHinge.pointA.y = newTreePositionY;
+        const newTreeWidth = TREE_IMG_WIDTH * newTreeScale;
+        const newTreeHeight = TREE_IMG_HEIGHT * newTreeScale;
 
-      treeHinge.pointB.x = 0;
-      treeHinge.pointB.y = newTreeHeight / 2;
+        // Recalculate tree Y based on new ground
+        const newTreePositionY = groundY - groundHeight / 2;
 
-      // Update tree body shape to match new width/height
-      Body.setVertices(
-        coconutTree,
-        Vertices.fromPath(
-          `0 0 ${newTreeWidth} 0 ${newTreeWidth} ${newTreeHeight} 0 ${newTreeHeight}`
-        )
-      );
+        // Update tree body shape to match new width/height
+        Body.setVertices(
+          coconutTree,
+          Vertices.fromPath(
+            `0 0 ${newTreeWidth} 0 ${newTreeWidth} ${newTreeHeight} 0 ${newTreeHeight}`
+          )
+        );
 
-      if (coconutTree.render.sprite) {
-        coconutTree.render.sprite.xScale = newTreeScale;
-        coconutTree.render.sprite.yScale = newTreeScale;
-      }
+        // Update tree body position
+        Body.setPosition(coconutTree, {
+          x: treePositionX,
+          y: newTreePositionY - newTreeHeight / 2,
+        });
+
+        // Update hinge position
+        treeHinge.pointA.x = treePositionX;
+        treeHinge.pointA.y = newTreePositionY;
+
+        coconutConstraint.pointA.x = newTreeWidth - 10;
+        coconutConstraint.pointA.y = -newTreeHeight / 2;
+
+        //update coconut constraint anchor to match new tree size
+        treeHinge.pointB.x = 0;
+        treeHinge.pointB.y = newTreeHeight / 2;
+
+        Body.setAngle(coconutTree, initialTreeAngle);
+        Body.setAngularVelocity(coconutTree, 0);
+
+        if (coconutTree.render.sprite) {
+          coconutTree.render.sprite.xScale = newTreeScale;
+          coconutTree.render.sprite.yScale = newTreeScale;
+        }
+
+        // Handle soldier
+        const soldierTargetHeightRatio = 0.2;
+
+        const soldierScale =
+          (height * soldierTargetHeightRatio) / SOLDIER_IMG_HEIGHT;
+
+        if (coconut.render.sprite) {
+          coconut.render.sprite.xScale = soldierScale;
+          coconut.render.sprite.yScale = soldierScale;
+        }
+
+        resetCoconut();
+        // resume simulation
+        engine.timing.timeScale = 1;
+      }, 300);
     };
+
     window.addEventListener("resize", handleResize);
     window.addEventListener("orientationchange", handleResize);
 
@@ -549,10 +588,6 @@ const Iteration2 = () => {
 
     // Clean up code ==================================================================================================================================================================
     return () => {
-      // Remove fullscreen listeners
-      document.removeEventListener("touchstart", handleFirstTouch);
-      document.removeEventListener("click", handleFirstTouch);
-
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("orientationchange", handleResize);
 
@@ -564,8 +599,68 @@ const Iteration2 = () => {
       }
     };
   }, []);
+
+  const toggleFullScreen = async () => {
+    const element = document.getElementsByClassName("scene-container")[0];
+
+    if (!element) return;
+
+    const isFullscreen =
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.msFullscreenElement;
+
+    if (!isFullscreen) {
+      try {
+        if (element.requestFullscreen) {
+          await element.requestFullscreen();
+        } else if (element.webkitRequestFullscreen) {
+          await element.webkitRequestFullscreen();
+        } else if (element.msRequestFullscreen) {
+          await element.msRequestFullscreen();
+        }
+
+        // orientation change
+        if (screen.orientation && screen.orientation.lock) {
+          await screen.orientation.lock("landscape");
+        }
+      } catch (err) {
+        console.warn("Full screen failed", err);
+      }
+    } else {
+      //exit full screen
+      if (document.exitFullscreen) {
+        await document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        await document.webkitExitFullscreen();
+      } else if (document.msExitFullscreen) {
+        await document.msExitFullscreen();
+      }
+
+      // unlock orientation
+      if (screen.orientation && screen.orientation.unlock) {
+        screen.orientation.unlock();
+      }
+    }
+  };
+
+  const handleStart = async () => {
+    setHasStarted(true);
+    await toggleFullScreen();
+  };
+
   return (
     <>
+      {/* start overlay */}
+      {!hasStarted && (
+        <div className="start-overlay" onClick={handleStart}>
+          <div className="start-box">
+            <h1>Click to start</h1>
+            <p>Best experienced</p>
+          </div>
+        </div>
+      )}
+
       <div className="scene-container">
         <video
           loop

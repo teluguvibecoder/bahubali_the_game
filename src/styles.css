@@ -24,6 +24,7 @@ body,
   overflow: hidden;
 }
 
+
 .bg-video{
   position: absolute;
   top: 0;
@@ -38,4 +39,36 @@ body,
   position: absolute;
   transform: translate(-50%, -50%);
   pointer-events: none; /* don't block mouse drag */
+}
+
+.start-overlay {
+  position: fixed;
+  inset: 0; /* top:0, right:0, bottom:0, left:0 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 10000;
+  cursor: pointer;
+}
+
+.start-box {
+  padding: 20px 32px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  text-align: center;
+  color: white;
+  font-family: system-ui, sans-serif;
+}
+
+.start-box h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+}
+
+.start-box p {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.8;
 }
