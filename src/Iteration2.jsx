@@ -207,7 +207,39 @@ const Iteration2 = () => {
       stiffness: 0.4,
     });
     // Coconut for reference End =====================================================================================================================================================
+    // soldiers left ====================================================================================
+    // const LEFT_WIDTH_SOLDIERS_IMG = 4569;
+    // const LEFT_HEIGHT_SOLDIERS_IMG = 1880;
 
+    // const leftSoldierTargetRatio = 0.3;
+
+    // const leftSoldierPositionX = 500;
+    // const leftSoldierPositionY = groundY - groundHeight / 2; // This is the ground top surface
+
+    // const leftSoldierScale = (height * treeTargetHeightRatio) / TREE_IMG_HEIGHT;
+
+    // const leftSoldierWidth = TREE_IMG_WIDTH * treeScale;
+    // const leftSoldierHeight = TREE_IMG_HEIGHT * treeScale;
+
+    // const leftSoldier = Bodies.rectangle(
+    //   leftSoldierPositionX,
+    //   leftSoldierPositionY - leftSoldierHeight / 2,
+    //   leftSoldierWidth,
+    //   leftsohe,
+    //   {
+    //     isStatic: false,
+    //     label: "tree",
+    //     render: {
+    //       sprite: {
+    //         texture: "/game_assets/coconut_tree.png",
+    //         xScale: treeScale,
+    //         yScale: treeScale,
+    //       },
+    //       //   fillStyle: "transparent",
+    //     },
+    //   }
+    // );
+    // soldiers left end ====================================================================================
     // Game drag, mouse logics =======================================================================================================================================================
     const mouse = Mouse.create(render.canvas);
     const mouseConstraint = MouseConstraint.create(engine, {
@@ -515,7 +547,10 @@ const Iteration2 = () => {
         Body.setVertices(
           coconutTree,
           Vertices.fromPath(
-            `0 0 ${newTreeWidth} 0 ${newTreeWidth} ${newTreeHeight} 0 ${newTreeHeight}`
+            `${-newTreeWidth / 2} ${-newTreeHeight / 2} ` +
+              `${newTreeWidth / 2} ${-newTreeHeight / 2} ` +
+              `${newTreeWidth / 2} ${newTreeHeight / 2} ` +
+              `${-newTreeWidth / 2} ${newTreeHeight / 2}`
           )
         );
 
@@ -526,13 +561,14 @@ const Iteration2 = () => {
         });
 
         // Update hinge position
-        treeHinge.pointA.x = treePositionX;
-        treeHinge.pointA.y = newTreePositionY;
+        treeHinge.pointA.x = coconutTree.position.x;
+        treeHinge.pointA.y = coconutTree.position.y + newTreeHeight / 2;
 
         coconutConstraint.pointA.x = newTreeWidth - 10;
         coconutConstraint.pointA.y = -newTreeHeight / 2;
 
         //update coconut constraint anchor to match new tree size
+        const bottomOffset = coconutTree.bounds.max.y - coconutTree.position.y;
         treeHinge.pointB.x = 0;
         treeHinge.pointB.y = newTreeHeight / 2;
 
