@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Bangers&family=Luckiest+Guy&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap');
+
 html,
 body,
 #root {
@@ -71,4 +73,245 @@ body,
   margin: 0;
   font-size: 14px;
   opacity: 0.8;
+}
+
+.start-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: linear-gradient(to bottom, #9ad1ff, #7ab0de);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-family: "Luckiest Guy", sans-serif;
+  color: #fff;
+}
+
+/* === Portrait Scene === */
+
+
+
+.portrait-intro {
+  position: relative;
+  text-align: center;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-around;
+  gap: 2rem;
+  height: 100%;
+  width: 100%;
+  background-image: url('/game_assets/mountains.png');
+  background-size: cover;         /* fills screen neatly */
+  background-repeat: no-repeat;   /* no tiling */
+  background-position: center;    /* keeps focus centered */
+  background-attachment: fixed;   /* optional: nice parallax effect */
+
+}
+
+.portrait-intro::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.4),
+    rgba(0, 0, 0, 0.1)
+  );
+  z-index: 0;
+}
+
+.portrait-intro > * {
+  z-index: 1; /* keep text/images above the overlay */
+}
+
+.portrait-hero {
+  width: 20%;
+  max-width: 200px;
+  animation: fadeInUp 1s ease-out;
+}
+
+.portrait-dialogue {
+  background: #fff;
+  color: #004f4f;
+  padding: 1rem 2rem;
+  border-radius: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  border: 2px solid #003838;
+  animation: popIn 0.8s ease-out;
+}
+
+.portrait-dialogue span {
+  color: #007575;
+}
+
+.start-btn {
+  background: #004f4f;
+  border: none;
+  border-radius: 10px;
+  padding: 0.8rem 2rem;
+  color: #fff;
+  font-size: 1.3rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #003838;
+  transition: transform 0.1s;
+}
+
+.start-btn:active {
+  transform: scale(0.97);
+}
+
+/* === Landscape Scene === */
+.landscape-intro {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* === Title and Caption container === */
+.gametitle {
+  position: absolute;
+  top: 4%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: "Bangers", cursive; /* or Gagalin if self-hosted */
+  font-size: 150%;
+  color: #fff;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  z-index: 10;
+  animation: fadeInDown 1s ease-out;
+}
+
+.captio {
+  position: absolute;
+  top: 8%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: "Poppins", sans-serif;
+  font-size: clamp(0.9rem, 2vw, 1.2rem);
+  font-weight: 600;
+  color: #f3f3f3;
+  letter-spacing: 1px;
+  opacity: 0.9;
+  z-index: 10;
+  animation: fadeInDown 1.3s ease-out;
+}
+
+.landscape-hero {
+  height: 90%;
+  max-height: 600px;
+  animation: fadeIn 1s ease-out;
+}
+
+.speech {
+  position: absolute;
+  background: #fff;
+  color: #111;
+  padding: 1rem 1.5rem;
+  border-radius: 30px;
+  font-weight: 800;
+  font-size: 1.2rem;
+  border: 3px solid #000;
+  box-shadow: 4px 4px 0 #000;
+  animation: bounceIn 1s ease-out;
+}
+
+.speech-left {
+  top: 25%;
+  left: 5%;
+  transform: rotate(-2deg);
+}
+
+.speech-right {
+  top: 80%;
+  right: 10%;
+  left: 10px;
+  margin: 10px;;
+  transform: rotate(2deg);
+}
+
+.example{
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.example span{
+  color: red;
+}
+
+/* === Animations === */
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes popIn {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes bounceIn {
+  0% { transform: scale(0.5) translateY(100px); opacity: 0; }
+  60% { transform: scale(1.05) translateY(-10px); opacity: 1; }
+  100% { transform: scale(1) translateY(0); }
+}
+
+@media (max-width: 600px) and (orientation: portrait) {
+  .portrait-intro {
+    gap: 1rem;
+  }
+
+  .portrait-hero {
+    width: 70%;
+  }
+
+  .portrait-dialogue {
+    font-size: 0.85rem;
+    padding: 0.8rem 1rem;
+    border-width: 1.5px;
+  }
+
+  .start-btn {
+    font-size: 1rem;
+    padding: 0.6rem 1.5rem;
+    border-radius: 8px;
+  }
+}
+
+/* ===============================
+   📱 MOBILE LANDSCAPE STYLES
+   =============================== */
+@media (max-width: 800px) and (orientation: landscape) {
+  .landscape-hero {
+    height: 80%;
+    max-height: none;
+  }
+
+  .speech {
+    font-size: 1rem;
+    padding: 0.7rem 1rem;
+    border-width: 2px;
+  }
+
+  .speech-left {
+    top: 10%;
+    left: 1%;
+  }
+
+  .speech-right {
+    top: 50%;
+    right: 3%;
+  }
 }

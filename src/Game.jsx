@@ -8,6 +8,9 @@ const Game = () => {
   const [hasStarted, setHasStarted] = useState(false);
   const musicRef = useRef(null);
   const releaseSfxRefs = useRef([]);
+  const [isPotrait, setIsPotrait] = useState(
+    window.innerHeight > window.innerWidth
+  );
 
   const sfxFiles = [
     "/music/sfx/1_.mp3",
@@ -729,6 +732,19 @@ const Game = () => {
     }
   }, [hasStarted]);
 
+  // orientation change instructions
+  useEffect(() => {
+    const updateOrientation = () => {
+      setIsPotrait(window.innerHeight > window.innerWidth);
+    };
+    window.addEventListener("resize", updateOrientation);
+    window.addEventListener("orientationchange", updateOrientation);
+    return () => {
+      window.removeEventListener("resize", updateOrientation);
+      window.removeEventListener("orientationchange", updateOrientation);
+    };
+  }, []);
+
   const toggleFullScreen = async () => {
     const element = document.getElementsByClassName("scene-container")[0];
 
@@ -783,10 +799,43 @@ const Game = () => {
       {/* start overlay */}
       {!hasStarted && (
         <div className="start-overlay" onClick={handleStart}>
-          <div className="start-box">
-            <h1>Click to start</h1>
-            <p>Best experienced</p>
-          </div>
+          {isPotrait ? (
+            // === 🖥️ LANDSCAPE MODE ===
+            <div className="landscape-intro">
+              <img
+                src="/instructions/prabhas2.png"
+                alt="Hero"
+                className="landscape-hero"
+              />
+              <div className="gametitle">Bahubali- The Game</div>
+              <div className="captio">By Telugu Vibe Coder</div>
+              <div className="speech speech-left">HELLO DARLINGGGGG</div>
+              <div className="speech speech-right">
+                DARLING, PHONE KONCHEM ROTATE CHEYAVA 😘
+              </div>
+            </div>
+          ) : (
+            // === 📱 PORTRAIT MODE ===
+            <div className="portrait-intro">
+              <img
+                src="/instructions/prabhas1.png"
+                alt="Hero"
+                className="portrait-hero"
+              />
+              <div className="portrait-dialogue">
+                <p>
+                  OKASARI <span>REFRESH CHEYANDI</span> FOR BETTER EXPERIENCE...
+                  <br />
+                  THANKS TO 😅, <span>THANKS A LOT 😇</span>
+                </p>
+                <p className="example">
+                  (Keep in <span>horizantal view</span> and click on the above
+                  link on the search box and Enter)
+                </p>
+              </div>
+              <button className="start-btn">Start The Game</button>
+            </div>
+          )}
         </div>
       )}
 
