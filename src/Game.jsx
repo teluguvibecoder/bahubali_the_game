@@ -8,10 +8,15 @@ const Game = () => {
   const [hasStarted, setHasStarted] = useState(false);
   const musicRef = useRef(null);
   const releaseSfxRefs = useRef([]);
+  const hitSfxRefs = useRef([]);
   const [isPotrait, setIsPotrait] = useState(
     window.innerHeight > window.innerWidth
   );
+  const [isGameOver, setIsGameOver] = useState(false);
 
+  let wallHitCount = 0;
+
+  // success sounds
   const sfxFiles = [
     "/music/sfx/1_.mp3",
     "/music/sfx/2_.mp3",
@@ -20,6 +25,39 @@ const Game = () => {
     "/music/sfx/5_.mp3",
     "/music/sfx/6_.mp3",
   ];
+
+  // Wall-hit sounds
+  const hitSfxFiles = [
+    "/music/sfx/hit1.mp3",
+    "/music/sfx/hit2.mp3",
+    // "/music/sfx/hit3.mp3",
+    "/music/sfx/hit4.mp3",
+  ];
+
+  // play random sound
+  // 🎯 plays one of the release sounds
+  const playRandomReleaseSound = () => {
+    const list = releaseSfxRefs.current.filter(Boolean);
+    if (!list.length) return;
+    const index = Math.floor(Math.random() * list.length);
+    const audio = list[index];
+    audio.currentTime = 0;
+    audio.volume = 0.9;
+    audio.play().catch((err) => console.warn("Release sound blocked:", err));
+  };
+
+  // 💥 plays one of the wall-hit sounds
+  const playRandomHitSound = () => {
+    const list = hitSfxRefs.current.filter(Boolean);
+    if (!list.length) return;
+    const index = Math.floor(Math.random() * list.length);
+    const audio = list[index];
+    audio.currentTime = 0;
+    audio.volume = 1;
+    audio.play().catch((err) => console.warn("Hit sound blocked:", err));
+  };
+
+  // play random sound ends
 
   useEffect(() => {
     const {
@@ -42,6 +80,22 @@ const Game = () => {
       width: window.innerWidth,
       height: window.innerHeight,
     });
+
+    // 🔁 Reset the entire game state after losing
+    const resetGame = () => {
+      // Reset score and counters
+      score = 0;
+      wallHitCount = 0;
+      hasHitWall = false;
+      hasPassedWall = false;
+      coconutReleased = false;
+
+      // Reset physics positions (tree, coconut, etc.)
+      resetCoconut();
+
+      // Close the overlay
+      setIsGameOver(false);
+    };
 
     const { width, height } = getSize();
 
@@ -294,20 +348,6 @@ const Game = () => {
       };
     };
 
-    // play random sound
-    const playRandomReleaseSound = () => {
-      const list = releaseSfxRefs.current.filter(Boolean);
-      if (!list.length) return;
-
-      const index = Math.floor(Math.random() * list.length);
-      const audio = list[index];
-
-      audio.currentTime = 0;
-      audio.volume = 1;
-      audio.play().catch((err) => console.warn("Audio play blocked : ", err));
-    };
-    // play random sound ends
-
     Events.on(mouseConstraint, "enddrag", (event) => {
       if (event.body === coconut && !coconutReleased) {
         isDragging = false;
@@ -436,7 +476,17 @@ const Game = () => {
           if (!hasHitWall) {
             hasHitWall = true;
             score -= 1;
+            wallHitCount += 1;
             console.log("Hit wall! Score:", score);
+
+            // 🔊 Play wall-hit sound
+            playRandomHitSound(hitSfxRefs);
+
+            if (wallHitCount >= 3) {
+              setTimeout(() => {
+                setIsGameOver(true);
+              }, 300);
+            }
           }
         }
       }
@@ -450,6 +500,7 @@ const Game = () => {
         if (coconut.position.x > wallLeftEdge) {
           hasPassedWall = true;
           score += 1;
+          wallHitCount = 0;
           console.log("Passed wall! Score:", score);
         }
       }
@@ -839,6 +890,16 @@ const Game = () => {
         </div>
       )}
 
+      {isGameOver && (
+        <div className="gameover-overlay" onClick={resetGame}>
+          <div className="gameover-box">
+            <h1>You Lose 😢</h1>
+            <p>You hit the wall 3 times!</p>
+            <button>Try Again</button>
+          </div>
+        </div>
+      )}
+
       <div className="scene-container">
         <video
           loop
@@ -865,6 +926,16 @@ const Game = () => {
         <audio
           key={i}
           ref={(el) => (releaseSfxRefs.current[i] = el)}
+          src={src}
+          preload="auto"
+        />
+      ))}
+
+      {/* Wall-hit SFX */}
+      {hitSfxFiles.map((src, i) => (
+        <audio
+          key={`hit-${i}`}
+          ref={(el) => (hitSfxRefs.current[i] = el)}
           src={src}
           preload="auto"
         />
