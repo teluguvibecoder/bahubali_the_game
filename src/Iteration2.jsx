@@ -6,6 +6,17 @@ const Iteration2 = () => {
   const engineRef = useRef(Matter.Engine.create());
   const renderRef = useRef(null);
   const [hasStarted, setHasStarted] = useState(false);
+  const musicRef = useRef(null);
+  const releaseSfxRefs = useRef([]);
+
+  const sfxFiles = [
+    "/music/sfx/1_.mp3",
+    "/music/sfx/2_.mp3",
+    "/music/sfx/3_.mp3",
+    "/music/sfx/4_.mp3",
+    "/music/sfx/5_.mp3",
+    "/music/sfx/6_.mp3",
+  ];
 
   useEffect(() => {
     const {
@@ -172,7 +183,7 @@ const Iteration2 = () => {
       (Math.min(SOLDIER_IMG_WIDTH, SOLDIER_IMG_HEIGHT) * soldierScale) / 2;
 
     const coconut = Bodies.circle(
-      treePositionX + treeWidth / 2 - soldierRadius, // Position on the tree
+      treePositionX + treeWidth / 2, // Position on the tree
       treePositionY - treeHeight / 2, // Near the top of the tree
       soldierRadius,
       {
@@ -195,7 +206,7 @@ const Iteration2 = () => {
       bodyA: coconutTree,
       // local point near the right edge, roughly center vertically
       pointA: {
-        x: treeWidth / 2 - soldierRadius, // right side minus a bit
+        x: treeWidth / 2, // right side minus a bit
         y: 0,
       },
       bodyB: coconut,
@@ -208,37 +219,39 @@ const Iteration2 = () => {
     });
     // Coconut for reference End =====================================================================================================================================================
     // soldiers left ====================================================================================
-    // const LEFT_WIDTH_SOLDIERS_IMG = 4569;
-    // const LEFT_HEIGHT_SOLDIERS_IMG = 1880;
+    const LEFT_WIDTH_SOLDIERS_IMG = 6000;
+    const LEFT_HEIGHT_SOLDIERS_IMG = 846;
 
-    // const leftSoldierTargetRatio = 0.3;
+    const leftSoldierTargetRatio = 0.15;
 
-    // const leftSoldierPositionX = 500;
-    // const leftSoldierPositionY = groundY - groundHeight / 2; // This is the ground top surface
+    const leftSoldierScale =
+      (height * leftSoldierTargetRatio) / LEFT_HEIGHT_SOLDIERS_IMG;
 
-    // const leftSoldierScale = (height * treeTargetHeightRatio) / TREE_IMG_HEIGHT;
+    const leftSoldierWidth = LEFT_WIDTH_SOLDIERS_IMG * leftSoldierScale;
+    const leftSoldierHeight = LEFT_HEIGHT_SOLDIERS_IMG * leftSoldierScale;
 
-    // const leftSoldierWidth = TREE_IMG_WIDTH * treeScale;
-    // const leftSoldierHeight = TREE_IMG_HEIGHT * treeScale;
+    const leftSoldierPositionX = width / 2 - 100;
+    const groundTopY = groundY - groundHeight / 2;
+    const leftSoldierPositionY = groundTopY - leftSoldierHeight / 2;
 
-    // const leftSoldier = Bodies.rectangle(
-    //   leftSoldierPositionX,
-    //   leftSoldierPositionY - leftSoldierHeight / 2,
-    //   leftSoldierWidth,
-    //   leftsohe,
-    //   {
-    //     isStatic: false,
-    //     label: "tree",
-    //     render: {
-    //       sprite: {
-    //         texture: "/game_assets/coconut_tree.png",
-    //         xScale: treeScale,
-    //         yScale: treeScale,
-    //       },
-    //       //   fillStyle: "transparent",
-    //     },
-    //   }
-    // );
+    const leftSoldier = Bodies.rectangle(
+      leftSoldierPositionX,
+      leftSoldierPositionY,
+      leftSoldierWidth,
+      leftSoldierHeight,
+      {
+        isStatic: false,
+        label: "tree",
+        render: {
+          sprite: {
+            texture: "/game_assets/full_soldiers.png",
+            xScale: leftSoldierScale,
+            yScale: leftSoldierScale,
+          },
+          //   fillStyle: "transparent",
+        },
+      }
+    );
     // soldiers left end ====================================================================================
     // Game drag, mouse logics =======================================================================================================================================================
     const mouse = Mouse.create(render.canvas);
@@ -278,6 +291,20 @@ const Iteration2 = () => {
       };
     };
 
+    // play random sound
+    const playRandomReleaseSound = () => {
+      const list = releaseSfxRefs.current.filter(Boolean);
+      if (!list.length) return;
+
+      const index = Math.floor(Math.random() * list.length);
+      const audio = list[index];
+
+      audio.currentTime = 0;
+      audio.volume = 1;
+      audio.play().catch((err) => console.warn("Audio play blocked : ", err));
+    };
+    // play random sound ends
+
     Events.on(mouseConstraint, "enddrag", (event) => {
       if (event.body === coconut && !coconutReleased) {
         isDragging = false;
@@ -295,6 +322,9 @@ const Iteration2 = () => {
 
         Body.setVelocity(coconut, launchVelocity);
         Body.setAngularVelocity(coconut, 0);
+
+        // play random sound
+        playRandomReleaseSound();
 
         // Schedule automatic reset after 4 seconds (whether on screen or off)
         if (!resetScheduled) {
@@ -592,6 +622,51 @@ const Iteration2 = () => {
         }
 
         resetCoconut();
+
+        // >>> SOLDIERS RESIZE & REPOSITION <<<
+        const LEFT_WIDTH_SOLDIERS_IMG = 6000;
+        const LEFT_HEIGHT_SOLDIERS_IMG = 846;
+        const leftSoldierTargetRatio = 0.15;
+
+        // recalculate scale based on new screen height
+        const newLeftSoldierScale =
+          (height * leftSoldierTargetRatio) / LEFT_HEIGHT_SOLDIERS_IMG;
+
+        // recalc dimensions
+        const newLeftSoldierWidth =
+          LEFT_WIDTH_SOLDIERS_IMG * newLeftSoldierScale;
+        const newLeftSoldierHeight =
+          LEFT_HEIGHT_SOLDIERS_IMG * newLeftSoldierScale;
+
+        // ground top Y (top edge of ground rectangle)
+        const groundTopY = groundY - groundHeight / 2;
+
+        // position soldiers so their bottom rests on ground
+        const newLeftSoldierX = width / 2;
+        const newLeftSoldierY = groundTopY - newLeftSoldierHeight / 2;
+
+        // update Matter body vertices & position
+        Body.setVertices(
+          leftSoldier,
+          Vertices.fromPath(
+            `${-newLeftSoldierWidth / 2} ${-newLeftSoldierHeight / 2} ` +
+              `${newLeftSoldierWidth / 2} ${-newLeftSoldierHeight / 2} ` +
+              `${newLeftSoldierWidth / 2} ${newLeftSoldierHeight / 2} ` +
+              `${-newLeftSoldierWidth / 2} ${newLeftSoldierHeight / 2}`
+          )
+        );
+
+        Body.setPosition(leftSoldier, {
+          x: newLeftSoldierX,
+          y: newLeftSoldierY,
+        });
+
+        // update scaling for the sprite
+        if (leftSoldier.render.sprite) {
+          leftSoldier.render.sprite.xScale = newLeftSoldierScale;
+          leftSoldier.render.sprite.yScale = newLeftSoldierScale;
+        }
+
         // resume simulation
         engine.timing.timeScale = 1;
       }, 300);
@@ -615,6 +690,7 @@ const Iteration2 = () => {
       coconutConstraint,
       mouseConstraint,
       wall,
+      leftSoldier,
     ]);
 
     // Run the engine==================================================================================================================================================================
@@ -635,6 +711,20 @@ const Iteration2 = () => {
       }
     };
   }, []);
+
+  // Play or pause music when game starts
+  useEffect(() => {
+    // console.log(hasStarted, musicRef.current, "--------");
+    if (hasStarted && musicRef.current) {
+      // console.log("inside");
+      musicRef.current
+        .play()
+        .catch((err) => console.warn("Autoplay blocked:", err));
+    } else if (!hasStarted && musicRef.current) {
+      musicRef.current.pause();
+      musicRef.current.currentTime = 0;
+    }
+  }, [hasStarted]);
 
   const toggleFullScreen = async () => {
     const element = document.getElementsByClassName("scene-container")[0];
@@ -708,6 +798,19 @@ const Iteration2 = () => {
         />
         <div ref={sceneRef} className="scene"></div>
       </div>
+
+      {/* 🎵 background music */}
+      <audio ref={musicRef} src="/music/music_bg.mp3" loop preload="auto" />
+
+      {/* Dynamic SFX loader  */}
+      {sfxFiles.map((src, i) => (
+        <audio
+          key={i}
+          ref={(el) => (releaseSfxRefs.current[i] = el)}
+          src={src}
+          preload="auto"
+        />
+      ))}
     </>
   );
 };
