@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useRef, useState } from "react";
 import Matter, { Events, use } from "matter-js";
 
-const Iteration2 = () => {
+const Game = () => {
   const sceneRef = useRef(null);
   const engineRef = useRef(Matter.Engine.create());
   const renderRef = useRef(null);
@@ -714,6 +714,9 @@ const Iteration2 = () => {
 
   // Play or pause music when game starts
   useEffect(() => {
+    if (musicRef.current) {
+      musicRef.current.volume = 0.3; // set to 30%
+    }
     // console.log(hasStarted, musicRef.current, "--------");
     if (hasStarted && musicRef.current) {
       // console.log("inside");
@@ -800,7 +803,13 @@ const Iteration2 = () => {
       </div>
 
       {/* 🎵 background music */}
-      <audio ref={musicRef} src="/music/music_bg.mp3" loop preload="auto" />
+      <audio
+        ref={musicRef}
+        src="/music/music_bg.mp3"
+        loop
+        preload="auto"
+        volume={0.3}
+      />
 
       {/* Dynamic SFX loader  */}
       {sfxFiles.map((src, i) => (
@@ -815,4 +824,4 @@ const Iteration2 = () => {
   );
 };
 
-export default Iteration2;
+export default Game;
