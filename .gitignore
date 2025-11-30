@@ -32,3 +32,7 @@ dist-ssr
 # Build outputs
 build
 .cache
+
+public/music/*.mp4
+public/music/*.wav
+
