@@ -360,7 +360,7 @@ body,
 /* Meme overlay mobile responsiveness */
 @media (max-width: 900px) and (orientation: landscape) {
   .meme-image {
-    max-width: 350px;
+    max-width: 300px;
   }
 }
 

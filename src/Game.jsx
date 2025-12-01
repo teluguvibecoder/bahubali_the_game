@@ -535,7 +535,7 @@ const Game = () => {
             // Auto-hide after 3 seconds
             setTimeout(() => {
               setShowMeme(false);
-            }, 3000);
+            }, 5000);
           }
         }
       }
