@@ -13,8 +13,22 @@ const Game = () => {
     window.innerHeight > window.innerWidth
   );
   const [isGameOver, setIsGameOver] = useState(false);
+  const [showMeme, setShowMeme] = useState(false);
+  const [currentMeme, setCurrentMeme] = useState("");
+
+  // Array of meme images - add your meme paths here
+  const memeImages = [
+    "/memes/1.png",
+    "/memes/2.png",
+    "/memes/3.png",
+    "/memes/4.png",
+    "/memes/5.png",
+  ];
 
   let wallHitCount = 0;
+  let lastMemeScore = 0; // Track last score when meme was shown
+
+  const resetGameRef = useRef(null);
 
   // success sounds
   const sfxFiles = [
@@ -80,22 +94,6 @@ const Game = () => {
       width: window.innerWidth,
       height: window.innerHeight,
     });
-
-    // 🔁 Reset the entire game state after losing
-    const resetGame = () => {
-      // Reset score and counters
-      score = 0;
-      wallHitCount = 0;
-      hasHitWall = false;
-      hasPassedWall = false;
-      coconutReleased = false;
-
-      // Reset physics positions (tree, coconut, etc.)
-      resetCoconut();
-
-      // Close the overlay
-      setIsGameOver(false);
-    };
 
     const { width, height } = getSize();
 
@@ -460,6 +458,29 @@ const Game = () => {
       hasPassedWall = false;
       hasHitWall = false;
     }
+    // 🔁 Reset the entire game state after losing
+    const resetGame = () => {
+      // Put coconut & tree back
+      resetCoconut();
+
+      // Reset score + counters inside this closure
+      score = 0;
+      wallHitCount = 0;
+      hasHitWall = false;
+      hasPassedWall = false;
+      coconutReleased = false;
+      lastMemeScore = 0;
+
+      // Resume physics if you later pause it on game over
+      engine.timing.timeScale = 1;
+
+      // Hide overlays
+      setIsGameOver(false);
+      setShowMeme(false);
+    };
+
+    // 🔗 Expose to React so the button can call it
+    resetGameRef.current = resetGame;
 
     // Collision detection with wall (lose point) ===========================================================================================================================================
     Events.on(engine, "collisionStart", (event) => {
@@ -483,9 +504,9 @@ const Game = () => {
             playRandomHitSound(hitSfxRefs);
 
             if (wallHitCount >= 3) {
-              setTimeout(() => {
-                setIsGameOver(true);
-              }, 300);
+              console.log("GAME OVER TRIGGERED, wallHitCount =", wallHitCount);
+              // engine.timing.timeScale = 0; // ⏸ pause physics
+              setIsGameOver(true);
             }
           }
         }
@@ -502,6 +523,20 @@ const Game = () => {
           score += 1;
           wallHitCount = 0;
           console.log("Passed wall! Score:", score);
+
+          // 🎉 Check if score is multiple of 5 and show meme
+          if (score % 5 === 0 && score !== 0 && score !== lastMemeScore) {
+            lastMemeScore = score;
+            const randomMeme =
+              memeImages[Math.floor(Math.random() * memeImages.length)];
+            setCurrentMeme(randomMeme);
+            setShowMeme(true);
+
+            // Auto-hide after 3 seconds
+            setTimeout(() => {
+              setShowMeme(false);
+            }, 3000);
+          }
         }
       }
     });
@@ -890,16 +925,6 @@ const Game = () => {
         </div>
       )}
 
-      {isGameOver && (
-        <div className="gameover-overlay" onClick={resetGame}>
-          <div className="gameover-box">
-            <h1>You Lose 😢</h1>
-            <p>You hit the wall 3 times!</p>
-            <button>Try Again</button>
-          </div>
-        </div>
-      )}
-
       <div className="scene-container">
         <video
           loop
@@ -909,7 +934,53 @@ const Game = () => {
           src="/game_assets/mountain_bg.mp4"
           className="bg-video"
         />
-        <div ref={sceneRef} className="scene"></div>
+        <div
+          ref={sceneRef}
+          className="scene"
+          style={{ pointerEvents: isGameOver ? "none" : "auto" }}
+        ></div>
+
+        {/* Meme Celebration Overlay */}
+        {showMeme && (
+          <div className="meme-overlay" onClick={() => setShowMeme(false)}>
+            <div className="meme-box" onClick={(e) => e.stopPropagation()}>
+              <img
+                src={currentMeme}
+                alt="Celebration Meme"
+                className="meme-image"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Game Over Overlay */}
+        {isGameOver && (
+          <div
+            className="gameover-overlay"
+            onClick={() => resetGameRef.current && resetGameRef.current()}
+          >
+            <div className="gameover-box" onClick={(e) => e.stopPropagation()}>
+              <img
+                src="/instructions/prabhas3.png"
+                alt="Prabhas"
+                className="gameover-hero-image"
+              />
+              <h1>
+                Em parledhu Darling, <br /> Malli try chedham 💪
+              </h1>
+              <p className="gameover-dialogue">
+                Nuvvu Na pakkana unnantha varaku, <br />
+                nannu champey magadu inka puttaledhu mama🥹
+              </p>
+              <p className="gameover-info">You hit the wall 3 times!</p>
+              <button
+                onClick={() => resetGameRef.current && resetGameRef.current()}
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 🎵 background music */}

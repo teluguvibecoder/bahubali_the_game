@@ -317,65 +317,261 @@ body,
 }
 
 /* ===========================
+   🎉 MEME CELEBRATION OVERLAY
+   =========================== */
+.meme-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999998;
+  pointer-events: all;
+  cursor: pointer;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.meme-box {
+  background: transparent;
+  padding: 20px;
+  border-radius: 20px;
+  text-align: center;
+  max-width: 90%;
+  max-height: 90vh;
+  cursor: default;
+  animation: zoomIn 0.4s ease-out;
+}
+
+.meme-image {
+  width: 100%;
+  max-width: 500px;
+  height: auto;
+  border-radius: 15px;
+  box-shadow: 0 10px 50px rgba(255, 255, 255, 0.3);
+  animation: bounceIn 0.6s ease-out;
+}
+
+/* Meme overlay mobile responsiveness */
+@media (max-width: 900px) and (orientation: landscape) {
+  .meme-image {
+    max-width: 350px;
+  }
+}
+
+@media (max-width: 600px) {
+  .meme-image {
+    max-width: 300px;
+  }
+}
+
+@media (max-width: 400px) {
+  .meme-image {
+    max-width: 250px;
+  }
+}
+
+/* ===========================
    🩸 GAME OVER OVERLAY
    =========================== */
 .gameover-overlay {
-  position: fixed;
-  inset: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
   background: rgba(0, 0, 0, 0.85);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 999;
-  animation: fadeIn 0.6s ease-out;
+  z-index: 9999999;
+  pointer-events: all;
+  cursor: pointer;
 }
 
 .gameover-box {
-  background: linear-gradient(145deg, #420000, #6a0000);
-  padding: 2.5rem 3rem;
+  background: linear-gradient(to bottom, #9ad1ff, #7ab0de);
+  padding: 40px 60px;
   border-radius: 20px;
   text-align: center;
-  box-shadow: 0 0 30px rgba(255, 0, 0, 0.6);
-  border: 3px solid #ff3333;
-  color: #fff;
-  animation: popIn 0.8s ease-out;
-  font-family: "Bangers", cursive; /* or Gagalin if you’re using that */
+  max-width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  animation: popIn 0.2s ease-out;
+  cursor: default;
+}
+
+.gameover-hero-image {
+  width: 100%;
+  max-width: 150px;
+  height: auto;
+  margin: 0 auto 0px;
+  animation: fadeInUp 0.5s ease-out;
 }
 
 .gameover-box h1 {
-  font-size: clamp(2rem, 5vw, 3rem);
-  margin-bottom: 1rem;
-  text-shadow: 3px 3px 0 #000;
+  color: #004f4f;
+  font-size: 2rem;
+  margin: 0 0 20px 0;
+  font-family: 'Luckiest Guy', cursive;
+  line-height: 1.2;
+  animation: bounceIn 0.6s ease-out;
 }
 
-.gameover-box p {
-  font-size: clamp(1rem, 2vw, 1.3rem);
-  margin-bottom: 2rem;
-  font-family: "Poppins", sans-serif;
+.gameover-dialogue {
+  font-size: 1.2rem;
+  color: #333;
+  margin: 10px 0;
+  font-weight: 600;
+  line-height: 1.5;
+  font-family: 'Courier New', Courier, monospace;
+  background-color: white;
+  padding: 15px;
+  border-radius: 10px;
+}
+
+.gameover-info {
+  font-size: 1.5rem;
+  margin: 20px 0;
+  color: #333;
+  font-weight: bold;
 }
 
 .gameover-box button {
-  background: #ff3333;
-  border: none;
+  margin-top: 20px;
+  background: #000;
   color: #fff;
-  font-size: 1.2rem;
-  font-weight: 700;
-  padding: 0.8rem 2rem;
-  border-radius: 12px;
+  border: none;
+  padding: 15px 30px;
+  border-radius: 10px;
   cursor: pointer;
-  box-shadow: 0 4px 0 #b20000;
-  transition: transform 0.1s, background 0.2s;
+  font-size: 1.3rem;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 0 #333;
+  font-family: "Luckiest Guy";
 }
 
 .gameover-box button:hover {
-  background: #ff5555;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #333;
 }
 
 .gameover-box button:active {
-  transform: scale(0.96);
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #333;
 }
 
-/* Small animation effects */
+/* Mobile responsiveness for game over */
+@media (max-width: 900px) and (orientation: landscape) {
+  .gameover-box {
+    padding: 20px 30px;
+    max-width: 85%;
+    max-height: 95vh;
+  }
+
+  .gameover-hero-image {
+    max-width: 100px;
+    margin: 0 auto 10px;
+  }
+
+  .gameover-box h1 {
+    font-size: 1.5rem;
+    margin: 0 0 10px 0;
+  }
+
+  .gameover-dialogue {
+    font-size: 0.9rem;
+    padding: 10px;
+    margin: 5px 0;
+  }
+
+  .gameover-info {
+    font-size: 1.1rem;
+    margin: 10px 0;
+  }
+
+  .gameover-box button {
+    padding: 10px 20px;
+    font-size: 1rem;
+    margin-top: 10px;
+  }
+}
+
+@media (max-width: 600px) and (orientation: portrait) {
+  .gameover-box {
+    padding: 25px 15px;
+    max-width: 95%;
+    max-height: 95vh;
+  }
+
+  .gameover-hero-image {
+    max-width: 120px;
+    margin: 0 auto 10px;
+  }
+
+  .gameover-box h1 {
+    font-size: 1.8rem;
+    margin: 0 0 15px 0;
+  }
+
+  .gameover-dialogue {
+    font-size: 1rem;
+    padding: 12px;
+    margin: 8px 0;
+  }
+
+  .gameover-info {
+    font-size: 1.2rem;
+    margin: 15px 0;
+  }
+
+  .gameover-box button {
+    padding: 12px 24px;
+    font-size: 1.1rem;
+    margin-top: 15px;
+  }
+}
+
+/* Extra small mobile devices */
+@media (max-width: 400px) {
+  .gameover-box {
+    padding: 20px 10px;
+  }
+
+  .gameover-hero-image {
+    max-width: 100px;
+  }
+
+  .gameover-box h1 {
+    font-size: 1.5rem;
+  }
+
+  .gameover-dialogue {
+    font-size: 0.9rem;
+    padding: 10px;
+  }
+
+  .gameover-info {
+    font-size: 1rem;
+  }
+
+  .gameover-box button {
+    padding: 10px 20px;
+    font-size: 1rem;
+  }
+}
+
+
+/* Animation effects */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -384,4 +580,18 @@ body,
 @keyframes popIn {
   0% { transform: scale(0.8); opacity: 0; }
   100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes zoomIn {
+  0% {
+    transform: scale(0.5) rotate(-5deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1) rotate(2deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
 }
