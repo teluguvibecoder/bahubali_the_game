@@ -1,10 +1,11 @@
-# Bahubali - The Game
+# Bahubali - The Game 
 
 A browser-based physics slingshot game inspired by Angry Birds, featuring Bahubali theme and Telugu dialogues.
 
 ## Play the Game
+<img width="480" height="270" alt="Land" src="https://github.com/user-attachments/assets/3204bb28-13bb-4db5-bf83-64c08fdca9a1" />
 
-<® [Play Now](YOUR_DEPLOYED_URL_HERE)
+<Â® [Play Now](https://bahubalithegame.netlify.app/)
 
 ## About
 
@@ -38,8 +39,6 @@ Launch soldiers from a coconut tree slingshot and try to get them past the Mahis
 - React 18
 - Matter.js (Physics Engine)
 - Vite
-- Howler.js (Audio)
-- GSAP (Animations)
 
 ## Run Locally
 
