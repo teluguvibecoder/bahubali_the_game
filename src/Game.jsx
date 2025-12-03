@@ -38,6 +38,9 @@ const Game = () => {
     "/music/sfx/4_.mp3",
     "/music/sfx/5_.mp3",
     "/music/sfx/6_.mp3",
+    "/music/sfx/8_.mp3",
+    "/music/sfx/9_.mp3",
+    "/music/sfx/10_.mp3",
   ];
 
   // Wall-hit sounds
